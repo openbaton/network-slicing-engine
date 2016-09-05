@@ -1,0 +1,325 @@
+#!/bin/sh
+
+. /lib/lsb/init-functions
+
+#general configuration
+_PROJECT_NAME="network-slicing-engine"
+
+_DEFAULT_PROPERTIES_FILE="${_PROJECT_BASE}/etc/application.properties"
+
+_BASE="/opt"
+_PROJECT_ROOT_BASE="${_BASE}/openbaton"
+_PROJECT_BASE="${_PROJECT_ROOT_BASE}/${_PROJECT_NAME}"
+
+_PROJECT_PROPERTIES_FOLDER="/etc/openbaton"
+_PROJECT_PROPERTIES_FILE="${_PROJECT_PROPERTIES_FOLDER}/${_PROJECT_NAME}.properties"
+_PROJECT_LOG_FOLDER="/var/log/openbaton"
+
+#debian configuration
+_APT_KEY_SERVER=""
+_APT_KEY_SERVER_KEY=""
+_APT_REPOSITORY=""
+
+#git configuration
+_PROJECT_REPO=""
+_SCRIPT_NAME="network-slicing-engine.sh"
+_TAG="develop"
+#_TAG="tags/1.0.0"
+
+_USER="$(id -un 2>/dev/null || true)"
+
+checkBinary () {
+  if command -v $1 >/dev/null 2>&1 ; then
+      log_success_msg "Checking for '$1'"
+      return 0
+  else
+      log_failure_msg "Checking for '$1'"
+      return 1
+  fi
+}
+
+_ex='sh -c'
+if [ "$_USER" != 'root' ]; then
+    if checkBinary sudo; then
+        _ex='sudo -E sh -c'
+    elif checkBinary su; then
+        _ex='su -c'
+    fi
+fi
+
+# Checks if the function call of setting properties got the expected values
+# $1: description shown for entering value (mandatory)
+# $2: configuration property (mandatory)
+# $3: default configuration value (optional)
+checkPropertyConfiguration () {
+    # Checking if the description is given
+    if [ -z "$1" ]; then
+      echo "-Parameter #1 is not set. Please provide the description of this configration parameter."
+      return 1
+    # Checking if the configuration parameter is given
+    elif [ -z "$2" ]; then
+      echo "-Parameter #2 is not set. Please provide the configration parameter."
+      return 1
+    fi
+    # Reading the value from the user
+    export _VALUE
+    read -p "$1 [$3]:" _VALUE
+    # Checking if at least one of both values is defined (either default or defined)
+    if [ -z "${_VALUE}" ] && [ -z "${3}" ]; then
+        log_failure_msg "You have to provide a value for \"$2\" since there is no default"
+        checkPropertyConfiguration "$1" "$2" "$3"
+    elif [ ! -z "${_VALUE}" ]; then
+        setProperty $2 $_VALUE
+        log_success_msg "Set parameter \"$2\" to value \"$_VALUE\""
+    elif [ ! -z "${3}" ]; then
+        setProperty $2 $3
+        log_success_msg "Kept parameter \"$2\" as the default value \"$3\""
+    fi
+}
+
+# Set the properties in the configuration file (no further checks)
+# $1: configuration property (mandatory)
+# $2: configuration property value (mandatory)
+setProperty () {
+    $_ex 'sed -i "s|^'"$1"'=.*|'"$1"'="'$2'"|g" '"$_PROJECT_PROPERTIES_FILE"
+}
+
+#property configuration
+configureProperties () {
+    echo "The properties file to change is: $_PROJECT_PROPERTIES_FILE"
+
+    echo "Project configuration"
+    checkPropertyConfiguration "Enter the port" "project.server.port" "9999"
+}
+
+askForConfiguration () {
+   echo "$1"
+   echo "1) Yes"
+   echo "2) No (default)"
+   read -p "Your choice: " choice
+   case $choice in
+       1) return 0;;
+       2) return 1;;
+       *) return 1;;
+   esac
+
+}
+
+######################
+#### Using DEBIAN ####
+######################
+
+#adding apt repository
+#1. add key
+#2. add repo
+#3. update repositories
+addAptRepository () {
+    if [ -z "$_APT_KEY_SERVER_KEY" ] && [ -z "$_APT_KEY_SERVER" ]; then
+        log_warning_msg "Either the key server or key for the key server was not defined. Continue with adding the apt repository"
+    else
+        echo "Adding key server and key..."
+        $_ex 'apt-key adv --keyserver '"$_APT_KEY_SERVER"' --recv-keys '"$_APT_KEY_SERVER_KEY"
+    fi
+    if [ -n "$_APT_REPOSITORY" ]; then
+        echo "Adding apt repository..."
+        $_ex 'add-apt-repository '"\"$_APT_REPOSITORY\""
+    else
+        log_error_msg "apt repository is null. Please provide"
+    fi
+    $_ex 'apt-get update -y'
+}
+
+#isntalls the project
+installProject () {
+    $_ex 'apt-get install -y '"$_PROJECT_NAME"
+}
+
+#debian re-start of the project
+restartProject () {
+    instance=$(ps aux | grep -v grep | grep "$_PROJECT_NAME" | grep jar | wc -l)
+    if [ ${instance} -ne 0 ] ; then
+        echo "restarting $_PROJECT_NAME ..."
+        "$_PROJECT_NAME" restart
+    else
+        echo "starting $_PROJECT_NAME ..."
+        "$_PROJECT_NAME" start
+    fi
+
+}
+
+#########################################
+########## Using source code ############
+#########################################
+
+prereq () {
+  $_ex 'apt-get update; apt-get -y install openjdk-7-jdk screen git'
+  log_success_msg "Installed required software"
+}
+
+checkEnvironment () {
+  _error=0
+  echo "Checking environment..."
+  checkBinary java; _error=$(($_error + $?))
+  checkBinary javac; _error=$(($_error + $?))
+  checkBinary curl; _error=$(($_error + $?))
+  checkBinary screen; _error=$(($_error + $?))
+  checkBinary wget; _error=$(($_error + $?))
+  if [ "0" != "$_error" ]; then
+    log_failure_msg "FAILED. Please install the above mentioned binaries."
+    exit 1
+  fi
+}
+
+#create the base where the project is cloned to
+createBase () {
+    echo "Creating the ${_PROJECT_NAME} root base folder \"${_PROJECT_ROOT_BASE}\""
+    if [ -d "${_PROJECT_ROOT_BASE}" ]; then
+        if [ -d "${_PROJECT_BASE}" ]; then
+            echo "Base folder \"${_PROJECT_BASE}\" exists already"
+            echo "How to proceed?"
+            echo "1) Keep it"
+            echo "2) Remove it (default)"
+            read -p "Your choice: " choice
+            case $choice in
+                1) return 0;;
+                2) $_ex 'rm -rf '"$_PROJECT_BASE"
+                log_success_msg "Removed old base folder";;
+                *) $_ex 'rm -rf '"$_PROJECT_BASE"
+                log_success_msg "Removed old base folder";;
+            esac
+        fi
+    else
+       $_ex 'mkdir -p '"$_PROJECT_ROOT_BASE"
+       log_success_msg "Created root base folder \"${_PROJECT_ROOT_BASE}\""
+    fi
+    $_ex 'chown -R '"$_USER $_PROJECT_ROOT_BASE"
+    log_success_msg "Configured permissions of root base folder \"${_PROJECT_ROOT_BASE}\""
+}
+
+createLogFolder () {
+    # create log folder and give permission
+    if [ -d "${_PROJECT_LOG_FOLDER}" ]; then
+        echo "Log folder \"${_PROJECT_LOG_FOLDER}\" exists already"
+        echo "How to proceed?"
+        echo "1) Keep it (default)"
+        echo "2) Remove it"
+        read -p "Your choice: " choice
+        case $choice in
+            1) return 0;;
+            2) $_ex 'rm -rf '"$_PROJECT_LOG_FOLDER"
+            log_success_msg "Removed log folder \"${_PROJECT_LOG_FOLDER}\""
+            $_ex 'mkdir -p '"$_PROJECT_LOG_FOLDER"
+            log_success_msg "Created log folder \"${_PROJECT_LOG_FOLDER}\"";;
+            *) return 0;;
+        esac
+    else
+        $_ex 'mkdir -p '"$_PROJECT_LOG_FOLDER"
+        log_success_msg "Created log folder \"${_PROJECT_LOG_FOLDER}\""
+    fi
+    $_ex 'chown -R '"$_USER $_PROJECT_LOG_FOLDER"
+    log_success_msg "Configured permissions of log folder \"${_PROJECT_LOG_FOLDER}\""
+}
+
+cloneProject () {
+    echo "Cloning ${_PROJECT_NAME} to ${_PROJECT_BASE} ..."
+    oldpath=`pwd`
+    cd "${_PROJECT_ROOT_BASE}"
+    git clone --recursive "${_PROJECT_REPO}" "${_PROJECT_NAME}"
+    cd $oldpath
+}
+
+checkoutVersion () {
+    echo "Choose version:"
+    echo "1) ${_TAG} (default)"
+    echo "2) master"
+    echo "3) develop"
+    read -p "Your choice: " choice
+    case $choice in
+        1) version=${_TAG};;
+        2) version=master;;
+        3) version=develop;;
+        *) version=${_TAG};;
+    esac
+    oldpath=`pwd`
+    cd "${_PROJECT_BASE}"
+    git checkout ${version}
+    cd $oldpath
+}
+
+copyConfigFiles () {
+    if [ ! -d "${_PROJECT_PROPERTIES_FOLDER}" ]; then
+        $_ex 'mkdir -p '"${_PROJECT_PROPERTIES_FOLDER}"
+        log_success_msg "created properties folder"
+    else
+        log_warning_msg "Properties folder \"${_PROJECT_PROPERTIES_FOLDER}\" exists already"    
+    fi
+    $_ex 'cp '"${_DEFAULT_PROPERTIES_FILE} ${_PROJECT_PROPERTIES_FILE}"
+    log_success_msg "Copied default configuration file \"${_DEFAULT_PROPERTIES_FILE}\" to \"${_PROJECT_PROPERTIES_FOLDER}\""
+    if [ -d "${_PROJECT_BASE}/etc" ]; then
+        $_ex 'cp '"${_PROJECT_BASE}/etc/* ${_PROJECT_PROPERTIES_FOLDER}"
+        log_success_msg "Copied files from \"${_PROJECT_BASE}/etc\" to \"${_PROJECT_PROPERTIES_FOLDER}\""
+    fi
+}
+
+compileProject () {
+    echo "Compiling ${_PROJECT_NAME}"
+    oldpath=`pwd`
+    cd "${_PROJECT_BASE}"
+    ./${_SCRIPT_NAME} compile
+    if [ $? -ne 0 ]; then
+        echo "ERROR: The compilation of ${_PROJECT_NAME} failed"
+        exit 1
+    fi
+    cd $oldpath
+}
+
+startProject () {
+    echo "Starting ${_PROJECT_NAME}"
+    oldpath=`pwd`
+    cd ${_PROJECT_BASE}
+    ./${_SCRIPT_NAME} start
+    cd $oldpath
+}
+
+#################
+### INSTALLER ###
+#################
+
+useDebian () {
+    #Add apt repository
+    addAptRepository
+    #Install project
+    installProject
+    #configure properties
+    configureProperties
+    #start or restart project
+    restartProject
+}
+
+useSourceCode () {
+    prereq
+    checkEnvironment
+    createBase
+    createLogFolder
+    cloneProject
+    checkoutVersion
+    copyConfigFiles
+    configureProperties
+    compileProject
+    startProject
+}
+
+bootstrap () {
+    echo "How to install ${_PROJECT_NAME}?"
+    echo "1) debian (default)"
+    echo "2) source code via git"
+    read -p "Your choice: " choice
+    case $choice in
+        1) useDebian;;
+        2) useSourceCode;;
+        *) useDebian;;
+    esac
+    echo "$_PROJECT_NAME is up and running now..."
+}
+
+bootstrap

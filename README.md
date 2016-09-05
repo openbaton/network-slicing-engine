@@ -3,8 +3,8 @@
   Copyright © 2015-2016 [Open Baton](http://openbaton.org). 
   Licensed under [Apache v2 License](http://www.apache.org/licenses/LICENSE-2.0).
 
-# XXX
-Here goes a short description of the project.
+# Network Slicing Engone
+This ensures QoS configuration defined in the Descriptors provided by the NFVO.
 
 # Technical Requirements
 This section covers the requirements that must be met by the marketplace in order to satisfy the demands for such a component:
@@ -13,18 +13,18 @@ This section covers the requirements that must be met by the marketplace in orde
 * 2nd ....
 * 3rd ....
 
-# How to install XXX
+# How to install Network Slicing Engine
 
 Short description about the installation procedure
 
-# How to use XXX
+# How to use Network Slicing Engine
 
 ## APIs
 | Method        |URL                | Request Body                                            | Response Body                                                         |Meaning       										|
 | ------------- |-------            |----------                                               |----------                                                             |-------------										|
 | POST  		|/api/v1/vnf-packages        | VNF Package as a multipart/form-data           | Uploaded VNF Package formatted in json. Contains all information related to VNFDs, Metadata file, scripts | creates an new VNF Package for the marketplace    |
 
-# How to extend XXX
+# How to extend Network Slicing Engine
 
 # Issue tracker
 
