@@ -49,7 +49,7 @@ repositories {
 }
 
 project.ext {
-    openbatonVersion = "2.1.4-SNAPSHOT"
+    openbatonVersion = "2.1.3"
     /**
      * Application Related Version
      */
@@ -61,10 +61,14 @@ project.ext {
 
 dependencies {
     compile group: 'org.springframework.boot', name: 'spring-boot-starter-actuator', version: '1.3.5.RELEASE'
+
+    compile("org.springframework.boot:spring-boot-starter-amqp")
+
+    compile 'org.openbaton:sdk:' + openbatonVersion
 }
 
 bootRepackage {
-    mainClass = 'org.openbaton.Starter'
+    mainClass = 'org.openbaton.nse.Starter'
 }
 
 apply from: 'gradle/gradle/packaging.project.debian.gradle'
