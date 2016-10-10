@@ -33,7 +33,6 @@ public class NfvoProperties {
   private String port;
   private String username;
   private String password;
-
   private Project project;
 
   public String getIp() {

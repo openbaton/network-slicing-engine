@@ -31,9 +31,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-
 /**
  * Created by maa on 13.10.15.
  */
@@ -60,7 +57,7 @@ public class OpenbatonConfiguration {
             nfvoProperties.getIp(),
             nfvoProperties.getPort(),
             "1");
-    this.logger.info("Starting the Open Baton Manager Bean");
+    logger.info("Starting the Open Baton Manager Bean");
 
     try {
       logger.info("Finding default project");
@@ -72,9 +69,7 @@ public class OpenbatonConfiguration {
           logger.info("Found default project");
         }
       }
-    } catch (SDKException e) {
-      throw new SDKException(e.getMessage());
-    } catch (ClassNotFoundException e) {
+    } catch (SDKException | ClassNotFoundException e) {
       throw new SDKException(e.getMessage());
     }
     return nfvoRequestor;

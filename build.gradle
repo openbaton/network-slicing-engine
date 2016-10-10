@@ -65,6 +65,11 @@ dependencies {
     compile("org.springframework.boot:spring-boot-starter-amqp")
 
     compile 'org.openbaton:sdk:' + openbatonVersion
+
+    compile ('org.apache.jclouds.driver:jclouds-slf4j:1.9.2')
+    compile ('org.apache.jclouds.driver:jclouds-sshj:1.9.2')
+    compile ('org.apache.jclouds.api:openstack-nova:1.9.2')
+    compile ('org.apache.jclouds.labs:openstack-neutron:1.9.2')
 }
 
 bootRepackage {

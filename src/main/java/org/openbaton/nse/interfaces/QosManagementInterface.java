@@ -19,14 +19,21 @@
 
 package org.openbaton.nse.interfaces;
 
+import org.openbaton.nse.utils.Quality;
+import org.openbaton.nse.utils.json.Host;
+import org.openbaton.nse.utils.json.InterfaceQoS;
+import org.openbaton.nse.utils.json.Server;
+
+import java.util.List;
+
 /**
  * Created by mpa on 05.09.16.
  */
 public interface QosManagementInterface {
 
-  void addQos();
+  InterfaceQoS addQos(InterfaceQoS serverIface, Quality quality);
 
   void updateQos();
 
-  void removeQos();
+  void removeQos(Host hostMap, List<Server> servers, List<String> serverIds, String nsrId);
 }

@@ -19,14 +19,20 @@
 
 package org.openbaton.nse.interfaces;
 
+import org.openbaton.nse.utils.FlowAllocation;
+import org.openbaton.nse.utils.json.Host;
+import org.openbaton.nse.utils.json.Server;
+
+import java.util.List;
+
 /**
  * Created by mpa on 05.09.16.
  */
 public interface FlowManagementInterface {
 
-  void addFlow();
+  void addFlow(Host host, List<Server> servers, FlowAllocation allocations, String nsrId);
 
-  void updateFlow();
+  void updateFlow(Host hostmap, List<String> serversIds, List<Server> servers, String nsrId);
 
-  void removeFlow();
+  void removeFlow(Host hostmap, List<String> serversIds, List<Server> servers, String nsrId);
 }

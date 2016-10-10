@@ -20,16 +20,17 @@
 package org.openbaton.nse.api;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
+import com.google.gson.JsonParser;
+
 import org.openbaton.catalogue.mano.descriptor.InternalVirtualLink;
 import org.openbaton.catalogue.mano.record.NetworkServiceRecord;
 import org.openbaton.catalogue.mano.record.VirtualNetworkFunctionRecord;
 import org.openbaton.catalogue.nfvo.Action;
-import org.openbaton.catalogue.nfvo.ApplicationEventNFVO;
 import org.openbaton.catalogue.nfvo.EndpointType;
 import org.openbaton.catalogue.nfvo.EventEndpoint;
-import org.openbaton.nse.core.FlowManagement;
-import org.openbaton.nse.interfaces.FlowManagementInterface;
+import org.openbaton.nse.beans.openbaton.QoSAllocator;
 import org.openbaton.nse.properties.RabbitMQProperties;
 import org.openbaton.sdk.NFVORequestor;
 import org.openbaton.sdk.api.exception.SDKException;
@@ -47,15 +48,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+
+import javax.annotation.PreDestroy;
 
 /**
  * Created by maa on 11.11.15.
@@ -64,17 +65,14 @@ import java.util.List;
 public class EventReceiver implements CommandLineRunner {
 
   @Autowired private NFVORequestor requestor;
-  private Logger logger = LoggerFactory.getLogger(this.getClass());
-
-  @Autowired private FlowManagementInterface flowManagement;
-
   @Autowired private RabbitMQProperties rabbitMQProperties;
-
+  @Autowired private QoSAllocator creator;
   @Autowired private Gson mapper;
 
+  private Logger logger = LoggerFactory.getLogger(this.getClass());
   private List<String> eventIds;
 
-  public static final String queueName_eventInstatiateFinish = "openbaton.nse.nsr.create";
+  public static final String queueName_eventInstantiateFinish = "openbaton.nse.nsr.create";
   public static final String queueName_eventError = "openbaton.nse.nsr.error";
 
   private void init() throws SDKException, IOException {
@@ -84,7 +82,7 @@ public class EventReceiver implements CommandLineRunner {
     EventEndpoint eventEndpointCreation = new EventEndpoint();
     eventEndpointCreation.setType(EndpointType.RABBIT);
     eventEndpointCreation.setEvent(Action.INSTANTIATE_FINISH);
-    eventEndpointCreation.setEndpoint(queueName_eventInstatiateFinish);
+    eventEndpointCreation.setEndpoint(queueName_eventInstantiateFinish);
     eventEndpointCreation.setName("eventNsrInstantiateFinish");
     eventEndpointCreation = requestor.getEventAgent().create(eventEndpointCreation);
 
@@ -101,11 +99,15 @@ public class EventReceiver implements CommandLineRunner {
 
   public void receiveConfiguration(String message) {
     logger.debug("received new event " + message);
-    ApplicationEventNFVO evt;
+    Action action;
+    NetworkServiceRecord nsr;
 
     try {
       logger.debug("Trying to deserialize it");
-      evt = mapper.fromJson(message, ApplicationEventNFVO.class);
+      JsonParser jsonParser = new JsonParser();
+      JsonObject json = jsonParser.parse(message).getAsJsonObject();
+      action = mapper.fromJson(json.get("action"), Action.class);
+      nsr = mapper.fromJson(json.get("payload"), NetworkServiceRecord.class);
     } catch (JsonParseException e) {
       if (logger.isDebugEnabled() || logger.isTraceEnabled())
         logger.warn("Error in payload, expected NSR ", e);
@@ -113,20 +115,12 @@ public class EventReceiver implements CommandLineRunner {
       return;
     }
 
-    NetworkServiceRecord nsr;
-    if (evt.getPayload() instanceof NetworkServiceRecord) {
-      nsr = (NetworkServiceRecord) evt.getPayload();
-    } else {
-      logger.warn("Received INSTANTIATE_FINISH event but it doesn't contain a NSR");
-      return;
-    }
-
     logger.info(
         "[OPENBATON-EVENT-SUBSCRIPTION] received new NSR "
-            + ((NetworkServiceRecord) evt.getPayload()).getId()
+            + nsr.getId()
             + "for slice allocation at time "
             + new Date().getTime());
-    logger.debug("ACTION: " + evt.getAction() + " PAYLOAD: " + evt.getPayload().toString());
+    logger.debug("ACTION: " + action + " PAYLOAD: " + nsr.toString());
 
     for (VirtualNetworkFunctionRecord vnfr : nsr.getVnfr()) {
       logger.debug("VNFR: " + vnfr.toString());
@@ -141,7 +135,7 @@ public class EventReceiver implements CommandLineRunner {
                       + nsr.getId()
                       + "for slice allocation to nsr handler at time "
                       + new Date().getTime());
-              flowManagement.addFlow();
+              creator.addQos(nsr.getVnfr(), nsr.getId());
             }
           }
         }
@@ -155,23 +149,19 @@ public class EventReceiver implements CommandLineRunner {
   public void deleteConfiguration(String message) {
 
     logger.debug("received new event " + message);
-    ApplicationEventNFVO evt;
+    Action action;
+    NetworkServiceRecord nsr;
 
     try {
       logger.debug("Trying to deserialize it");
-      evt = mapper.fromJson(message, ApplicationEventNFVO.class);
+      JsonParser jsonParser = new JsonParser();
+      JsonObject json = jsonParser.parse(message).getAsJsonObject();
+      action = mapper.fromJson(json.get("action"), Action.class);
+      nsr = mapper.fromJson(json.get("payload"), NetworkServiceRecord.class);
     } catch (JsonParseException e) {
       if (logger.isDebugEnabled() || logger.isTraceEnabled())
         logger.warn("Error in payload, expected NSR ", e);
       else logger.warn("Error in payload, expected NSR " + e.getMessage());
-      return;
-    }
-
-    NetworkServiceRecord nsr;
-    if (evt.getPayload() instanceof NetworkServiceRecord) {
-      nsr = (NetworkServiceRecord) evt.getPayload();
-    } else {
-      logger.warn("Received RELEASE_RESOURCE_FINISH event but it doesn't contain a NSR");
       return;
     }
 
@@ -180,7 +170,7 @@ public class EventReceiver implements CommandLineRunner {
             + nsr.getId()
             + " for slice removal at time "
             + new Date().getTime());
-    logger.debug("ACTION: " + evt.getAction() + " PAYLOAD " + evt.getPayload().toString());
+    logger.debug("ACTION: " + action + " PAYLOAD " + nsr.toString());
 
     for (VirtualNetworkFunctionRecord vnfr : nsr.getVnfr()) {
       logger.debug("VNFR: " + vnfr.toString());
@@ -194,7 +184,7 @@ public class EventReceiver implements CommandLineRunner {
                       + nsr.getId()
                       + "for slice removal to nsr handler at time "
                       + new Date().getTime());
-              flowManagement.removeFlow();
+              creator.removeQos(nsr.getVnfr(), nsr.getId());
             }
           }
         }
@@ -227,7 +217,7 @@ public class EventReceiver implements CommandLineRunner {
   @Bean
   public Queue getCreationQueue() {
     logger.debug("Created Queue for NSR Create event");
-    return new Queue(queueName_eventInstatiateFinish, false, false, true);
+    return new Queue(queueName_eventInstantiateFinish, false, false, true);
   }
 
   @Bean
