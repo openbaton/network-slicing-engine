@@ -44,6 +44,23 @@ function start_checks {
     fi
 }
 
+function init {
+    if [ ! -f $_config_file ]; then
+        if [ $EUID != 0 ]; then
+            echo "creating the directory and copying the file"
+            sudo -E sh -c "mkdir /etc/openbaton; cp ${_project_base}/src/main/resources/qos.properties ${_config_file}"
+            #echo "copying the file, insert the administrator password" | sudo -kS cp ${_nubomedia_paas_base}/src/main/resources/paas.properties ${_nubomedia_config_file}
+        else
+            echo "creating the directory"
+            mkdir /etc/openbaton
+            echo "copying the file"
+            cp ${_project_base}/src/main/resources/paas.properties ${_config_file}
+        fi
+    else
+        echo "Properties file already exist"
+    fi
+}
+
 function start {
     start_checks
     screen_exists=$(screen -ls | grep ${_screen_name} | wc -l);
@@ -94,8 +111,8 @@ function end {
     exit
 }
 function usage {
-    echo -e "project-template\n"
-    echo -e "Usage:\n\t ./project-template.sh [compile|start|start_fg|test|kill|clean]"
+    echo -e "network-slicing-engine\n"
+    echo -e "Usage:\n\t ./network-slicing-engine.sh [compile|init|start|start_fg|test|kill|clean]"
 }
 
 ##
@@ -128,6 +145,8 @@ do
             restart ;;
         "compile" )
             compile ;;
+        "init" )
+            init ;;
         "kill" )
             kill ;;
         "test" )
