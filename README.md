@@ -3,27 +3,43 @@
   Copyright © 2015-2016 [Open Baton](http://openbaton.org). 
   Licensed under [Apache v2 License](http://www.apache.org/licenses/LICENSE-2.0).
 
-# Network Slicing Engone
+# Network Slicing Engine
 This ensures QoS configuration defined in the Descriptors provided by the NFVO.
 
 # Technical Requirements
-This section covers the requirements that must be met by the marketplace in order to satisfy the demands for such a component:
+This section covers the requirements that must be met by the environment in order to satisfy the demands of the network-slicing-engine:
 
-* 1st and most important requirement
-* 2nd ....
-* 3rd ....
+* installed and configured Open Baton NFVO/gVNFM (>=2.1.3)
+* installed and configured Openstack (>=Mitaka)
 
 # How to install Network Slicing Engine
 
-Short description about the installation procedure
+Quick installation process:
+```% mkdir /opt/openstack
+% cd /opt/openstack
+% git clone https://github.com/openbaton/network-slicing-engine
+% cd network-slicing-engine
+% ./network-slicing-engine.sh compile init
+# then configure the properties file to suit your setup in regards of nfvo and rabbitmq
+% $EDITOR /etc/openbaton/network-slicing-engine.properties
+% ./network-slicing-engine.sh start
+# to attach and see the logging output
+% screen -x openbaton
+```
 
 # How to use Network Slicing Engine
+The currently only supported driver is neutron, which will use the native QoS capabilities of Openstack. To use it simply set ```networkslicingengine.driver=neutron``` in the configuration file. To set QoS policies in your NSD specify the following QoS parameter in the virtual_link of your vnfd configuration. 
 
-## APIs
-| Method        |URL                | Request Body                                            | Response Body                                                         |Meaning       										|
-| ------------- |-------            |----------                                               |----------                                                             |-------------										|
-| POST  		|/api/v1/vnf-packages        | VNF Package as a multipart/form-data           | Uploaded VNF Package formatted in json. Contains all information related to VNFDs, Metadata file, scripts | creates an new VNF Package for the marketplace    |
-
+```
+  "virtual_link":[
+    {
+      "name":"NAME_OF_THE_NETWORK",
+      "qos":[
+        "minimum_bandwith:BRONZE"
+      ]
+    }
+  ]
+```
 # How to extend Network Slicing Engine
 
 # Issue tracker
