@@ -53,7 +53,9 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 
 import javax.annotation.PreDestroy;
@@ -74,6 +76,7 @@ public class EventReceiver implements CommandLineRunner {
 
   public static final String queueName_eventInstantiateFinish = "openbaton.nse.nsr.create";
   public static final String queueName_eventError = "openbaton.nse.nsr.error";
+  public static final String queueName_eventScale = "openbaton.nse.nsr.scale";
 
   private void init() throws SDKException, IOException {
 
@@ -93,8 +96,16 @@ public class EventReceiver implements CommandLineRunner {
     eventEndpointDeletion.setName("eventNsrReleaseFinish");
     eventEndpointDeletion = requestor.getEventAgent().create(eventEndpointDeletion);
 
+    EventEndpoint eventEndpointScale = new EventEndpoint();
+    eventEndpointScale.setType(EndpointType.RABBIT);
+    eventEndpointScale.setEvent(Action.SCALED);
+    eventEndpointScale.setEndpoint(queueName_eventScale);
+    eventEndpointScale.setName("eventNsrScaleFinish");
+    eventEndpointScale = requestor.getEventAgent().create(eventEndpointScale);
+
     this.eventIds.add(eventEndpointCreation.getId());
     this.eventIds.add(eventEndpointDeletion.getId());
+    this.eventIds.add(eventEndpointScale.getId());
   }
 
   public void receiveConfiguration(String message) {
@@ -192,6 +203,49 @@ public class EventReceiver implements CommandLineRunner {
     }
   }
 
+  public void scaleConfiguration(String message) {
+
+    logger.debug("received new event " + message);
+    Action action;
+    VirtualNetworkFunctionRecord vnfr;
+
+    try {
+      logger.debug("Trying to deserialize it");
+      JsonParser jsonParser = new JsonParser();
+      JsonObject json = jsonParser.parse(message).getAsJsonObject();
+      action = mapper.fromJson(json.get("action"), Action.class);
+      vnfr = mapper.fromJson(json.get("payload"), VirtualNetworkFunctionRecord.class);
+    } catch (JsonParseException e) {
+      if (logger.isDebugEnabled() || logger.isTraceEnabled())
+        logger.warn("Error in payload, expected NSR ", e);
+      else logger.warn("Error in payload, expected NSR " + e.getMessage());
+      return;
+    }
+
+    logger.info(
+        "[OPENBATON-EVENT-SUBSCRIPTION] received new VNFR "
+        + vnfr.getId()
+        + " for scaled slice at time "
+        + new Date().getTime());
+    logger.debug("ACTION: " + action + " PAYLOAD " + vnfr.toString());
+
+    for (InternalVirtualLink vlr : vnfr.getVirtual_link()) {
+      logger.debug("VLR: " + vlr.toString());
+      if (!vlr.getQos().isEmpty()) {
+        for (String qosAttr : vlr.getQos()) {
+          if (qosAttr.contains("minimum_bandwith")) {
+            logger.info(
+                "[OPENBATON-EVENT-SUBSCRIPTION] sending the VNFR "
+                + vnfr.getId()
+                + "for slice scale to nsr handler at time "
+                + new Date().getTime());
+            creator.addQos(new HashSet<VirtualNetworkFunctionRecord>(Arrays.asList(vnfr)), vnfr.getParent_ns_id());
+          }
+        }
+      }
+    }
+  }
+
   @PreDestroy
   private void dispose() throws SDKException {
     for (String id : this.eventIds) {
@@ -227,6 +281,12 @@ public class EventReceiver implements CommandLineRunner {
   }
 
   @Bean
+  public Queue getScaleQueue() {
+    logger.debug("Created Queue for NSR scale event");
+    return new Queue(queueName_eventScale, false, false, true);
+  }
+
+  @Bean
   public Binding setCreationBinding(
       @Qualifier("getCreationQueue") Queue queue, TopicExchange topicExchange) {
     logger.debug("Created Binding for NSR Creation event");
@@ -241,6 +301,13 @@ public class EventReceiver implements CommandLineRunner {
   }
 
   @Bean
+  public Binding setScaleBinding(
+      @Qualifier("getScaleQueue") Queue queue, TopicExchange topicExchange) {
+    logger.debug("Created Binding for NSR scale event");
+    return BindingBuilder.bind(queue).to(topicExchange).with("ns-scale");
+  }
+
+  @Bean
   public MessageListenerAdapter setCreationMessageListenerAdapter() {
     return new MessageListenerAdapter(this, "receiveConfiguration");
   }
@@ -248,6 +315,11 @@ public class EventReceiver implements CommandLineRunner {
   @Bean
   public MessageListenerAdapter setErrorMessageListenerAdapter() {
     return new MessageListenerAdapter(this, "deleteConfiguration");
+  }
+
+  @Bean
+  public MessageListenerAdapter setScaleMessageListenerAdapter() {
+    return new MessageListenerAdapter(this, "scaleConfiguration");
   }
 
   @Bean
@@ -276,6 +348,18 @@ public class EventReceiver implements CommandLineRunner {
     return res;
   }
 
+  @Bean
+  public SimpleMessageListenerContainer setScaleMessageContainer(
+      ConnectionFactory connectionFactory,
+      @Qualifier("getScaleQueue") Queue queue,
+      @Qualifier("setScaleMessageListenerAdapter") MessageListenerAdapter adapter) {
+    logger.debug("Created MessageContainer for NSR scale event");
+    SimpleMessageListenerContainer res = new SimpleMessageListenerContainer();
+    res.setConnectionFactory(connectionFactory);
+    res.setQueues(queue);
+    res.setMessageListener(adapter);
+    return res;
+  }
   public void run(String... args) throws Exception {
     init();
   }
