@@ -16,16 +16,16 @@ This section covers the requirements that must be met by the environment in orde
 
 Quick installation process:
 ```
-    % mkdir /opt/openstack
-    % cd /opt/openstack
-    % git clone https://github.com/openbaton/network-slicing-engine
-    % cd network-slicing-engine
-    % ./network-slicing-engine.sh compile init
-    # then configure the properties file to suit your setup in regards of nfvo and rabbitmq
-    % $EDITOR /etc/openbaton/network-slicing-engine.properties
-    % ./network-slicing-engine.sh start
-    # to attach and see the logging output
-    % screen -x openbaton
+$ mkdir /opt/openstack
+$ cd /opt/openstack
+$ git clone https://github.com/openbaton/network-slicing-engine
+$ cd network-slicing-engine
+$ ./network-slicing-engine.sh compile init
+$ # then configure the properties file to suit your setup in regards of nfvo and rabbitmq
+$ $EDITOR /etc/openbaton/network-slicing-engine.properties
+$ ./network-slicing-engine.sh start
+$ # to attach and see the logging output
+$ screen -x openbaton
 ```
 
 # How to use Network Slicing Engine
