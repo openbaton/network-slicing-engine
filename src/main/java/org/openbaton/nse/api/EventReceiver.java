@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2016 Fraunhofer FOKUS
+ *  * Copyright (c) 2016 Open Baton (http://www.openbaton.org)
  *  *
  *  * Licensed under the Apache License, Version 2.0 (the "License");
  *  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  *  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *  * See the License for the specific language governing permissions and
  *  * limitations under the License.
- *
  *
  */
 
@@ -224,9 +223,9 @@ public class EventReceiver implements CommandLineRunner {
 
     logger.info(
         "[OPENBATON-EVENT-SUBSCRIPTION] received new VNFR "
-        + vnfr.getId()
-        + " for scaled slice at time "
-        + new Date().getTime());
+            + vnfr.getId()
+            + " for scaled slice at time "
+            + new Date().getTime());
     logger.debug("ACTION: " + action + " PAYLOAD " + vnfr.toString());
 
     for (InternalVirtualLink vlr : vnfr.getVirtual_link()) {
@@ -236,10 +235,12 @@ public class EventReceiver implements CommandLineRunner {
           if (qosAttr.contains("minimum_bandwith")) {
             logger.info(
                 "[OPENBATON-EVENT-SUBSCRIPTION] sending the VNFR "
-                + vnfr.getId()
-                + "for slice scale to nsr handler at time "
-                + new Date().getTime());
-            creator.addQos(new HashSet<VirtualNetworkFunctionRecord>(Arrays.asList(vnfr)), vnfr.getParent_ns_id());
+                    + vnfr.getId()
+                    + "for slice scale to nsr handler at time "
+                    + new Date().getTime());
+            creator.addQos(
+                new HashSet<VirtualNetworkFunctionRecord>(Arrays.asList(vnfr)),
+                vnfr.getParent_ns_id());
           }
         }
       }
@@ -360,6 +361,7 @@ public class EventReceiver implements CommandLineRunner {
     res.setMessageListener(adapter);
     return res;
   }
+
   public void run(String... args) throws Exception {
     init();
   }

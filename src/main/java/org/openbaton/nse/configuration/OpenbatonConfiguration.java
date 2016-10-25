@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2016 Fraunhofer FOKUS
+ *  * Copyright (c) 2016 Open Baton (http://www.openbaton.org)
  *  *
  *  * Licensed under the Apache License, Version 2.0 (the "License");
  *  * you may not use this file except in compliance with the License.
@@ -14,12 +14,12 @@
  *  * See the License for the specific language governing permissions and
  *  * limitations under the License.
  *
- *
  */
 
 package org.openbaton.nse.configuration;
 
 import org.openbaton.catalogue.security.Project;
+import org.openbaton.exceptions.NotFoundException;
 import org.openbaton.nse.properties.NfvoProperties;
 import org.openbaton.nse.utils.Utils;
 import org.openbaton.sdk.NFVORequestor;
@@ -43,7 +43,7 @@ public class OpenbatonConfiguration {
   private static Logger logger = LoggerFactory.getLogger(OpenbatonConfiguration.class);
 
   @Bean
-  public NFVORequestor getNFVORequestor() throws SDKException {
+  public NFVORequestor getNFVORequestor() throws SDKException, NotFoundException {
     if (!Utils.isNfvoStarted(nfvoProperties.getIp(), nfvoProperties.getPort())) {
       logger.error("NFVO is not available");
       System.exit(1);
@@ -68,6 +68,9 @@ public class OpenbatonConfiguration {
           nfvoRequestor.setProjectId(project.getId());
           logger.info("Found default project");
         }
+      }
+      if (!found) {
+        throw new NotFoundException("Not found project " + nfvoProperties.getProject().getName());
       }
     } catch (SDKException | ClassNotFoundException e) {
       throw new SDKException(e.getMessage());
