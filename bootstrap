@@ -5,7 +5,7 @@
 #general configuration
 _PROJECT_NAME="network-slicing-engine"
 
-_DEFAULT_PROPERTIES_FILE="${_PROJECT_BASE}/etc/application.properties"
+_DEFAULT_PROPERTIES_FILE="${_PROJECT_BASE}/etc/network-slicing-engine.properties"
 
 _BASE="/opt"
 _PROJECT_ROOT_BASE="${_BASE}/openbaton"
@@ -21,7 +21,7 @@ _APT_KEY_SERVER_KEY=""
 _APT_REPOSITORY=""
 
 #git configuration
-_PROJECT_REPO=""
+_PROJECT_REPO="gitlab.fokus.fraunhofer.de/openbaton/network-slicing-engine"
 _SCRIPT_NAME="network-slicing-engine.sh"
 _TAG="develop"
 #_TAG="tags/1.0.0"
