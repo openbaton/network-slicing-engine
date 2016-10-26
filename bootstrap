@@ -88,8 +88,16 @@ setProperty () {
 configureProperties () {
     echo "The properties file to change is: $_PROJECT_PROPERTIES_FILE"
 
-    echo "Project configuration"
-    checkPropertyConfiguration "Enter the port" "project.server.port" "9999"
+    echo "NFVO configuration"
+    checkPropertyConfiguration "Enter the IP of the NFVO" "nfvo.ip" "localhost"
+    checkPropertyConfiguration "Enter the port of the NFVO" "nfvo.port" "8080"
+    checkPropertyConfiguration "Enter the username to authorize against the NFVO" "nfvo.username" "admin"
+    checkPropertyConfiguration "Enter the password to authorize against the NFVO" "nfvo.password" ""
+
+    echo "RabbitMQ configuration"
+    checkPropertyConfiguration "Enter the host address where the RabbitMQ server is running" "rabbitmq.host" "localhost"
+    checkPropertyConfiguration "Enter the username used to authorize against the RabbitMQ server" "rabbitmq.username" ""
+    checkPropertyConfiguration "Enter the password used to authorize against the RabbitMQ server" "rabbitmq.password" ""
 }
 
 askForConfiguration () {
