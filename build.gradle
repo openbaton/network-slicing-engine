@@ -63,8 +63,7 @@ dependencies {
 
     compile("org.springframework.boot:spring-boot-starter-amqp")
 
-    compile 'org.openbaton:sdk:2.2.0'
-//    compile 'org.openbaton:sdk:' + openbatonVersion
+    compile 'org.openbaton:sdk:' + openbatonVersion
     compile 'org.openbaton:exception:' + openbatonVersion
 
     compile ('org.apache.jclouds.driver:jclouds-slf4j:1.9.2')
