@@ -5,7 +5,7 @@ source ./gradle.properties
 _version=${version}
 
 _project_base="/opt/openbaton/openbaton-nse"
-_process_name="openbaton-nse"
+_process_name="network-slicing-engine"
 _screen_name="openbaton"
 _config_file="/etc/openbaton/nse.properties"
 
@@ -54,7 +54,7 @@ function init {
             echo "creating the directory"
             mkdir /etc/openbaton
             echo "copying the file"
-            cp ${_project_base}/src/main/resources/application.properties ${_config_file}
+            cp ${_project_base}/etc/nse.properties ${_config_file}
         fi
     else
         echo "Properties file already exist"

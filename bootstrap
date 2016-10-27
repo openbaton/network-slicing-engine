@@ -3,7 +3,7 @@
 . /lib/lsb/init-functions
 
 #general configuration
-_PROJECT_NAME="openbaton-nse"
+_PROJECT_NAME="network-slicing-engine"
 
 _DEFAULT_PROPERTIES_FILE="${_PROJECT_BASE}/etc/nse.properties"
 
@@ -16,9 +16,7 @@ _PROJECT_PROPERTIES_FILE="${_PROJECT_PROPERTIES_FOLDER}/nse.properties"
 _PROJECT_LOG_FOLDER="/var/log/openbaton"
 
 #debian configuration
-_APT_KEY_SERVER=""
-_APT_KEY_SERVER_KEY=""
-_APT_REPOSITORY=""
+_DEB_NAME="openbaton-nse"
 
 #git configuration
 _PROJECT_REPO="https://github.com/openbaton/network-slicing-engine.git"
@@ -122,35 +120,31 @@ askForConfiguration () {
 #2. add repo
 #3. update repositories
 addAptRepository () {
-    if [ -z "$_APT_KEY_SERVER_KEY" ] && [ -z "$_APT_KEY_SERVER" ]; then
-        log_warning_msg "Either the key server or key for the key server was not defined. Continue with adding the apt repository"
-    else
-        echo "Adding key server and key..."
-        $_ex 'apt-key adv --keyserver '"$_APT_KEY_SERVER"' --recv-keys '"$_APT_KEY_SERVER_KEY"
+    # Add Open Baton Public Key to the APT keys
+    $_ex 'wget -O - http://get.openbaton.org/keys/public.gpg.key | apt-key add -'
+
+    # Add Open Baton Repo to sources.list file
+    result=$(grep /etc/apt/sources.list -e "deb http://get.openbaton.org/repos/apt/debian/ stable main" | wc -l)
+    if [ ${result} -eq 0 ]; then
+        $_ex 'echo "\ndeb http://get.openbaton.org/repos/apt/debian/ stable main" >> /etc/apt/sources.list'
     fi
-    if [ -n "$_APT_REPOSITORY" ]; then
-        echo "Adding apt repository..."
-        $_ex 'add-apt-repository '"\"$_APT_REPOSITORY\""
-    else
-        log_error_msg "apt repository is null. Please provide"
-    fi
-    $_ex 'apt-get update -y'
+    $_ex 'apt-get update'
 }
 
 #isntalls the project
 installProject () {
-    $_ex 'apt-get install -y '"$_PROJECT_NAME"
+    $_ex 'apt-get install -y '"$_DEB_NAME"
 }
 
 #debian re-start of the project
 restartProject () {
     instance=$(ps aux | grep -v grep | grep "$_PROJECT_NAME" | grep jar | wc -l)
     if [ ${instance} -ne 0 ] ; then
-        echo "restarting $_PROJECT_NAME ..."
-        "$_PROJECT_NAME" restart
+        echo "restarting $_DEB_NAME ..."
+        "$_DEB_NAME" restart
     else
-        echo "starting $_PROJECT_NAME ..."
-        "$_PROJECT_NAME" start
+        echo "starting $_DEB_NAME ..."
+        "$_DEB_NAME" start
     fi
 
 }
@@ -270,19 +264,19 @@ copyConfigFiles () {
 }
 
 compileProject () {
-    echo "Compiling ${_PROJECT_NAME}"
+    echo "Compiling Network Slicing Engine"
     oldpath=`pwd`
     cd "${_PROJECT_BASE}"
     ./${_SCRIPT_NAME} compile
     if [ $? -ne 0 ]; then
-        echo "ERROR: The compilation of ${_PROJECT_NAME} failed"
+        echo "ERROR: The compilation of Network Slicing Engine failed"
         exit 1
     fi
     cd $oldpath
 }
 
 startProject () {
-    echo "Starting ${_PROJECT_NAME}"
+    echo "Starting Network Slicing Engine"
     oldpath=`pwd`
     cd ${_PROJECT_BASE}
     ./${_SCRIPT_NAME} start
@@ -318,7 +312,7 @@ useSourceCode () {
 }
 
 bootstrap () {
-    echo "How to install ${_PROJECT_NAME}?"
+    echo "How to install Network Slicing Engine?"
     echo "1) debian (default)"
     echo "2) source code via git"
     read -p "Your choice: " choice

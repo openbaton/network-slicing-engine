@@ -38,17 +38,17 @@ fi
 ####################
 
 check_already_running () {
-	instance=$(ps aux | grep -v grep | grep "$_PROJECT_NAME" | grep jar | wc -l)
+	instance=$(ps aux | grep -v grep | grep "network-slicing-engine" | grep jar | wc -l)
     if [ ${instance} -ne 0 ] ; then
-        log_warning_msg "The $_PROJECT_NAME is already running"
+        log_warning_msg "The Network Slicing Engine is already running"
         exit 1
     fi
 }
 
 set_jar_version () {
-	PROJECT_JAR=$(ls -ct ${_INSTALL_DIR} | grep "$_PROJECT_NAME" | grep jar | head -n 1)
+	PROJECT_JAR=$(ls -ct ${_INSTALL_DIR} | grep "network-slicing-engine" | grep jar | head -n 1)
 	if [ ${PROJECT_JAR} = "" ]; then
-        log_failure_msg "The $_PROJECT_NAME is not installed (jar-file not found)"
+        log_failure_msg "The Network Slicing Engine is not installed (jar-file not found)"
 		exit 1
     fi
 }
@@ -60,13 +60,13 @@ configure () {
 
 start () {
     configure
-    echo "Starting $_PROJECT_NAME ..."
+    echo "Starting Network Slicing Engine ..."
     $_ex 'start-stop-daemon --start --background --pidfile '"${_PID_FILE}"' --make-pidfile --user '"${_DAEMON_USER}"' --chuid '"${_DAEMON_USER}"' --exec /usr/bin/java -- -jar '"${_INSTALL_DIR}"'/'"${PROJECT_JAR}"' --spring.config.location=file:'"${_PROJECT_CONFIG_FILE}"
     log_end_msg $?
 }
 
 stop () {
-    echo "Stopping $_PROJECT_NAME ..."
+    echo "Stopping Network Slicing Engine ..."
     $_ex 'start-stop-daemon --stop --pidfile '"$_PID_FILE"
     log_end_msg $?
 }
@@ -83,7 +83,7 @@ restart () {
 
 
 usage () {
-    echo "$_PROJECT_NAME"
+    echo "Network Slicing Engine"
     echo "Usage:\n\t [$_PROJECT_NAME start|stop|restart|kill] | [service $_PROJECT_NAME start|stop|restart|kill] | [start|stop $_PROJECT_NAME]"
 }
 
