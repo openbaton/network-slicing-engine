@@ -16,8 +16,8 @@ This section covers the requirements that must be met by the environment in orde
 
 Quick installation process:
 ```
-$ mkdir /opt/openstack
-$ cd /opt/openstack
+$ mkdir /opt/openbaton
+$ cd /opt/openbaton
 $ git clone https://github.com/openbaton/network-slicing-engine
 $ cd network-slicing-engine
 $ ./network-slicing-engine.sh compile init
