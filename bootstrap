@@ -21,7 +21,7 @@ _APT_KEY_SERVER_KEY=""
 _APT_REPOSITORY=""
 
 #git configuration
-_PROJECT_REPO="github.com/openbaton/network-slicing-engine"
+_PROJECT_REPO="https://github.com/openbaton/network-slicing-engine.git"
 _SCRIPT_NAME="network-slicing-engine.sh"
 _TAG="develop"
 #_TAG="tags/1.0.0"
