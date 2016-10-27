@@ -90,9 +90,9 @@ public class EventReceiver implements CommandLineRunner {
 
     EventEndpoint eventEndpointDeletion = new EventEndpoint();
     eventEndpointDeletion.setType(EndpointType.RABBIT);
-    eventEndpointDeletion.setEvent(Action.RELEASE_RESOURCES_FINISH);
+    eventEndpointDeletion.setEvent(Action.ERROR);
     eventEndpointDeletion.setEndpoint(queueName_eventError);
-    eventEndpointDeletion.setName("eventNsrReleaseFinish");
+    eventEndpointDeletion.setName("eventNsrError");
     eventEndpointDeletion = requestor.getEventAgent().create(eventEndpointDeletion);
 
     EventEndpoint eventEndpointScale = new EventEndpoint();

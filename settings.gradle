@@ -16,5 +16,5 @@
  *
  */
 
-rootProject.name = 'network-slicing-engine'
+rootProject.name = 'openbaton-nse'
 

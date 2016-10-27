@@ -2,9 +2,9 @@
 
 . /lib/lsb/init-functions
 
-_PROJECT_NAME=network-slicing-engine
-_CONFIG_FILE=/etc/openbaton/network-slicing-engine.properties
-_DEFAULT_CONFIG_FILE=etc/network-slicing-engine.properties
+_PROJECT_NAME=openbaton-nse
+_CONFIG_FILE=/etc/openbaton/nse.properties
+_DEFAULT_CONFIG_FILE=etc/nse.properties
 _PROJECT_EXE_FOLDER=/usr/bin
 _PROJECT_LOGS_FOLDER=/var/log/openbaton
 

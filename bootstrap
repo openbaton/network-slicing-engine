@@ -3,16 +3,16 @@
 . /lib/lsb/init-functions
 
 #general configuration
-_PROJECT_NAME="network-slicing-engine"
+_PROJECT_NAME="openbaton-nse"
 
-_DEFAULT_PROPERTIES_FILE="${_PROJECT_BASE}/etc/network-slicing-engine.properties"
+_DEFAULT_PROPERTIES_FILE="${_PROJECT_BASE}/etc/nse.properties"
 
 _BASE="/opt"
 _PROJECT_ROOT_BASE="${_BASE}/openbaton"
 _PROJECT_BASE="${_PROJECT_ROOT_BASE}/${_PROJECT_NAME}"
 
 _PROJECT_PROPERTIES_FOLDER="/etc/openbaton"
-_PROJECT_PROPERTIES_FILE="${_PROJECT_PROPERTIES_FOLDER}/${_PROJECT_NAME}.properties"
+_PROJECT_PROPERTIES_FILE="${_PROJECT_PROPERTIES_FOLDER}/nse.properties"
 _PROJECT_LOG_FOLDER="/var/log/openbaton"
 
 #debian configuration
@@ -21,7 +21,7 @@ _APT_KEY_SERVER_KEY=""
 _APT_REPOSITORY=""
 
 #git configuration
-_PROJECT_REPO="gitlab.fokus.fraunhofer.de/openbaton/network-slicing-engine"
+_PROJECT_REPO="github.com/openbaton/network-slicing-engine"
 _SCRIPT_NAME="network-slicing-engine.sh"
 _TAG="develop"
 #_TAG="tags/1.0.0"

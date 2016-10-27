@@ -4,10 +4,10 @@ set -e
 
 . /lib/lsb/init-functions
 
-_PROJECT_CONFIG_FILE=/etc/openbaton/network-slicing-engine.properties
-_PROJECT_NAME="network-slicing-engine"
+_PROJECT_CONFIG_FILE=/etc/openbaton/nse.properties
+_PROJECT_NAME="openbaton-nse"
 _INSTALL_DIR=/usr/lib/openbaton
-_PID_FILE=/var/run/network-slicing-engine.pid
+_PID_FILE=/var/run/openbaton-nse.pid
 _DAEMON_USER=root
 _OSTYPE=$(uname)
 

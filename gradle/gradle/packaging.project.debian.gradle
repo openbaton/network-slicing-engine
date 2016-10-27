@@ -23,11 +23,11 @@ ext {
 }
 
 task makedeb(type: Deb, dependsOn: [jar, build]) { 
-    packageName = "network-slicing-engine"
+    packageName = "openbaton-nse"
     version = debianApplicationVersionFull
     release = 1 
     priority = 'optional'
-    arch = 'amd64'
+    arch = 'all'
     maintainer = 'Open Baton Team'
     vendor = 'Open Source (Implemented by Fraunhofer FOKUS and TUB)'
     license = 'Apache 2.0 License'
@@ -42,9 +42,9 @@ task makedeb(type: Deb, dependsOn: [jar, build]) {
     requires('openjdk-7-jre')
 
     // Copy files from "from path" to "into path"
-    from('etc/network-slicing-engine.properties')                  	   { into '/etc/openbaton/network-slicing-engine.properties' }
+    from('etc/nse.properties')                  	   { into '/etc/openbaton/' }
     from(jar.outputs.files) 				                   { into '/usr/lib/openbaton/' }
-    from('gradle/gradle/scripts/network-slicing-engine') 	           { into '/usr/bin/'}
-    from('gradle/gradle/scripts/network-slicing-engine') 	           { into '/etc/init.d/'}
-    from('gradle/gradle/scripts/network-slicing-engine.conf') 	   { into '/etc/init/'}
+    from('gradle/gradle/scripts/openbaton-nse') 	           { into '/usr/bin/'}
+    from('gradle/gradle/scripts/openbaton-nse') 	           { into '/etc/init.d/'}
+    from('gradle/gradle/scripts/openbaton-nse.conf') 	   { into '/etc/init/'}
 }

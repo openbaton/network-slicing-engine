@@ -7,7 +7,7 @@ _version=${version}
 _project_base="/opt/openbaton/network-slicing-engine"
 _process_name="network-slicing-engine"
 _screen_name="openbaton"
-_config_file="/etc/openbaton/network-slicing-engine.properties"
+_config_file="/etc/openbaton/nse.properties"
 
 function checkBinary {
   if command -v $1 >/dev/null 2>&1; then

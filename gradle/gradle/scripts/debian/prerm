@@ -2,7 +2,7 @@
 
 . /lib/lsb/init-functions
 
-_PROJECT_NAME="network-slicing-engine"
+_PROJECT_NAME="openbaton-nse"
 _PROJECT_BASE=/usr
 _PROJECT_LOGS_FOLDER=/var/log/openbaton
 
