@@ -1,15 +1,49 @@
 #!/bin/sh
 
-set -e
+# Copyright (c) 2016 Open Baton (http://www.openbaton.org)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
+
+##########################
+#### General Settings ####
+##########################
+
+set -e
+set -u
+#set -x # only for DEBUG
+
+# Make available the functions defined in /lib/lsb/init-functions
 . /lib/lsb/init-functions
 
-_PROJECT_CONFIG_FILE=/etc/openbaton/nse.properties
-_PROJECT_NAME="openbaton-nse"
-_INSTALL_DIR=/usr/lib/openbaton
-_PID_FILE=/var/run/openbaton-nse.pid
-_DAEMON_USER=root
-_OSTYPE=$(uname)
+
+##########################
+#### Global Variables ####
+##########################
+
+OPENBATON_COMPONENT_NAME_FANCY="Network Slicing Engine (NSE)"
+OPENBATON_COMPONENT_NAME=nse
+OPENBATON_COMPONENT_RELATIVE_SUBPATH=nse
+
+OPENBATON_COMPONENT_CONFIG_FILE=/etc/openbaton/openbaton-${OPENBATON_COMPONENT_NAME}.properties
+OPENBATON_COMPONENT_JAR_FILE_NAME=openbaton-${OPENBATON_COMPONENT_NAME}
+OPENBATON_COMPONENT_JAR_INSTALL_DIR=/usr/lib/openbaton/${OPENBATON_COMPONENT_RELATIVE_SUBPATH}
+
+OPENBATON_COMPONENT_PID_FILE=/var/run/openbaton-${OPENBATON_COMPONENT_NAME}.pid
+DAEMON_USER=root
+OSTYPE=$(uname)
+
+
 
 _USER="$(id -un 2>/dev/null || true)"
 
@@ -33,23 +67,24 @@ if [ "$_USER" != 'root' ]; then
     fi
 fi
 
+
 ####################
-#### PaaS-Manager ##
+#### Open Baton ####
 ####################
 
 check_already_running () {
-	instance=$(ps aux | grep -v grep | grep "network-slicing-engine" | grep jar | wc -l)
-    if [ ${instance} -ne 0 ] ; then
-        log_warning_msg "The Network Slicing Engine is already running"
+    instance=$(ps aux | grep -v grep | grep "${OPENBATON_COMPONENT_JAR_FILE_NAME}" | grep "jar" | wc -l)
+    if [ ${instance} -ne 0 ]; then
+        log_warning_msg "The Open Baton ${OPENBATON_COMPONENT_NAME_FANCY} is already running"
         exit 1
     fi
 }
 
 set_jar_version () {
-	PROJECT_JAR=$(ls -ct ${_INSTALL_DIR} | grep "network-slicing-engine" | grep jar | head -n 1)
-	if [ ${PROJECT_JAR} = "" ]; then
-        log_failure_msg "The Network Slicing Engine is not installed (jar-file not found)"
-		exit 1
+    openbaton_component_jar_file_name_versioned=$(ls -ct ${OPENBATON_COMPONENT_JAR_INSTALL_DIR} | grep "${OPENBATON_COMPONENT_JAR_FILE_NAME}" | grep "jar" | head -n 1)
+    if [ ${openbaton_component_jar_file_name_versioned} = "" ]; then
+        log_failure_msg "The Open Baton ${OPENBATON_COMPONENT_NAME_FANCY} is not installed (jar-file not found)"
+        exit 1
     fi
 }
 
@@ -60,20 +95,20 @@ configure () {
 
 start () {
     configure
-    echo "Starting Network Slicing Engine ..."
-    $_ex 'start-stop-daemon --start --background --pidfile '"${_PID_FILE}"' --make-pidfile --user '"${_DAEMON_USER}"' --chuid '"${_DAEMON_USER}"' --exec /usr/bin/java -- -jar '"${_INSTALL_DIR}"'/'"${PROJECT_JAR}"' --spring.config.location=file:'"${_PROJECT_CONFIG_FILE}"
-    log_end_msg $?
+    log_success_msg "Starting the Open Baton ${OPENBATON_COMPONENT_NAME_FANCY} .."
+    start-stop-daemon --start --background --pidfile ${OPENBATON_COMPONENT_PID_FILE} --make-pidfile --user ${DAEMON_USER} --chuid ${DAEMON_USER} --exec /usr/bin/java -- -jar ${OPENBATON_COMPONENT_JAR_INSTALL_DIR}/${openbaton_component_jar_file_name_versioned} --spring.config.location=file:${OPENBATON_COMPONENT_CONFIG_FILE}
+    #log_end_msg $?
 }
 
 stop () {
-    echo "Stopping Network Slicing Engine ..."
-    $_ex 'start-stop-daemon --stop --pidfile '"$_PID_FILE"
-    log_end_msg $?
+    log_success_msg "Stopping the Open Baton ${OPENBATON_COMPONENT_NAME_FANCY} .."
+    start-stop-daemon --stop --pidfile ${OPENBATON_COMPONENT_PID_FILE}
+    #log_end_msg $?
 }
 
 kill () {
-    $_ex 'kill -9 `cat '"${_PID_FILE}"'`'
-    log_end_msg $?
+    kill -9 $(cat "${OPENBATON_COMPONENT_PID_FILE}")
+    #log_end_msg $?
 }
 
 restart () {
@@ -81,10 +116,10 @@ restart () {
     start
 }
 
-
 usage () {
-    echo "Network Slicing Engine"
-    echo "Usage:\n\t [$_PROJECT_NAME start|stop|restart|kill] | [service $_PROJECT_NAME start|stop|restart|kill] | [start|stop $_PROJECT_NAME]"
+    echo "Open Baton ${OPENBATON_COMPONENT_NAME_FANCY}"
+    #echo "Usage:\n\t [openbaton-${OPENBATON_COMPONENT_NAME} start|stop|restart] | [service openbaton-${OPENBATON_COMPONENT_NAME} start|stop|restart] | [start|stop openbaton-${OPENBATON_COMPONENT_NAME}] | [systemctl start|stop openbaton-${OPENBATON_COMPONENT_NAME}.service]"
+    echo "Usage:\n\t [openbaton-${OPENBATON_COMPONENT_NAME} start|stop|restart|kill] | [service openbaton-${OPENBATON_COMPONENT_NAME} start|stop|restart|kill] | [start|stop|restart|kill openbaton-${OPENBATON_COMPONENT_NAME}]"
 }
 
 
@@ -92,10 +127,9 @@ usage () {
 #   MAIN
 ##
 
-if [ ${#} -eq 0 ]
-   then
-        usage
-        exit 1
+if [ ${#} -eq 0 ]; then
+    usage
+    exit 1
 fi
 
 for cmd in ${@}
@@ -112,8 +146,7 @@ do
          *)
 	        usage;;
     esac
-    if [ ${?} -ne 0 ];
-    then
+    if [ ${?} -ne 0 ]; then
 	    exit 1
     fi
 done

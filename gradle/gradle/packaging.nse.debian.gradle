@@ -1,0 +1,59 @@
+/*
+ * Copyright (c) 2016 Open Baton (http://www.openbaton.org)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+ext {
+    debianApplicationVersionFull = "${applicationVersionFull}".replaceAll("-", ".")
+
+    baseName = 'openbaton'
+    componentName = "nse"
+    fullName = "${baseName}-${componentName}"
+    propertiesDir = '/etc/openbaton'
+    baseBinaryDir = '/usr/lib/openbaton'
+    jarSubpathName = "${componentName}".replaceAll("-", "/")
+}
+
+task makedeb(type: Deb, dependsOn: [jar, build]) { 
+    packageName = (applicationRelease) ? "${fullName}" : "${fullName}-nightly"
+    version = debianApplicationVersionFull
+    //release = 1
+    priority = 'optional'
+    arch = 'all'
+    maintainer = 'Open Baton Team <dev@openbaton.org>'
+    vendor = 'Open Source (Implemented by Fraunhofer FOKUS and TUB)'
+    license = 'Apache 2.0 License'
+    url = 'https://openbaton.github.io/index.html'
+    summary = 'Open Baton Network Slicing Engine (NSE)'
+    packageDescription = 'The Network Slicing Engine (NSE) is a component of the Open Baton project which is an ETSI compliant implementation of a NFV Management and Orchestration (MANO) System'
+
+    preInstall file('gradle/gradle/scripts/debian/preinst')
+    postInstall file('gradle/gradle/scripts/debian/postinst')
+    preUninstall file('gradle/gradle/scripts/debian/prerm')
+
+    requires('openjdk-7-jre')
+
+    // Copy files from "from path" to "into path"
+    from("etc/nse.properties") {                                                                                // properties file
+        into "/etc/openbaton/"
+        rename ("nse.properties","${fullName}.properties")
+    }
+    from(jar.outputs.files) {                                                                                   // jar file
+        into "${baseBinaryDir}/${jarSubpathName}"
+        rename("(.*)", "${fullName}-${version}.jar")
+    }
+    from("gradle/gradle/scripts/${fullName}")                       { into '/usr/bin/'}                         // executable to run the Component
+    from("gradle/gradle/scripts/${fullName}")                       { into '/etc/init.d/'}                      // executable to run the Component as a service (SysV)
+    from("gradle/gradle/scripts/${fullName}.conf")                  { into '/etc/init/'}                        // conf file to run the Component as a service (Upstart)
+}
