@@ -364,6 +364,7 @@ public class Neutron_AddQoSExecutor implements Runnable {
 
   // Adds additional to the other loop the vim_ids of the related vnfr
   private List<DetailedQoSReference> getDetailedQosesRefs(Set<VirtualNetworkFunctionRecord> vnfrs) {
+    Boolean dup;
     Map<String, Quality> qualities = this.getVlrs(vnfrs);
     List<DetailedQoSReference> res = new ArrayList<>();
     for (VirtualNetworkFunctionRecord vnfr : vnfrs) {
@@ -380,12 +381,21 @@ public class Neutron_AddQoSExecutor implements Runnable {
               for (Ip ip : vnfci.getIps()) {
                 String net = ip.getNetName();
                 if (netQualities.keySet().contains(net)) {
-                  DetailedQoSReference ref = new DetailedQoSReference();
-                  ref.setQuality(qualities.get(vnfr.getName()));
-                  ref.setVim_id(vnfci.getVim_id());
-                  ref.setIp(ip.getIp());
-                  logger.debug("GET QOSES REF: adding reference to list " + ref.toString());
-                  res.add(ref);
+                  // Avoid duplicate entries
+                  dup = false;
+                  for (DetailedQoSReference t : res) {
+                    if (t.getIp().equals(ip.getIp())) {
+                      dup = true;
+                    }
+                  }
+                  if (!dup) {
+                    DetailedQoSReference ref = new DetailedQoSReference();
+                    ref.setQuality(qualities.get(vnfr.getName()));
+                    ref.setVim_id(vnfci.getVim_id());
+                    ref.setIp(ip.getIp());
+                    logger.debug("GET QOSES REF: adding reference to list " + ref.toString());
+                    res.add(ref);
+                  }
                 }
               }
             }
