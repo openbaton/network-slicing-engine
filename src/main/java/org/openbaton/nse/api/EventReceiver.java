@@ -30,6 +30,7 @@ import org.openbaton.catalogue.nfvo.Action;
 import org.openbaton.catalogue.nfvo.EndpointType;
 import org.openbaton.catalogue.nfvo.EventEndpoint;
 import org.openbaton.nse.beans.openbaton.QoSAllocator;
+import org.openbaton.nse.properties.NetworkSlicingEngineProperties;
 import org.openbaton.nse.properties.RabbitMQProperties;
 import org.openbaton.sdk.NFVORequestor;
 import org.openbaton.sdk.api.exception.SDKException;
@@ -69,6 +70,7 @@ public class EventReceiver implements CommandLineRunner {
   @Autowired private RabbitMQProperties rabbitMQProperties;
   @Autowired private QoSAllocator creator;
   @Autowired private Gson mapper;
+  @Autowired private NetworkSlicingEngineProperties nse_configuration;
 
   private Logger logger = LoggerFactory.getLogger(this.getClass());
   private List<String> eventIds;
@@ -132,6 +134,13 @@ public class EventReceiver implements CommandLineRunner {
             + new Date().getTime());
     logger.debug("ACTION: " + action + " PAYLOAD: " + nsr.toString());
 
+    // So here we need to distinguish for the neutron-driver
+    // since it only needs to be executed once...
+    if (nse_configuration.getDriver().equals("neutron")) {
+      // The check if the nsr contains QoS is done afterwards...
+      creator.addQos(nsr.getVnfr(), nsr.getId());
+      return;
+    }
     for (VirtualNetworkFunctionRecord vnfr : nsr.getVnfr()) {
       logger.debug("VNFR: " + vnfr.toString());
       for (InternalVirtualLink vlr : vnfr.getVirtual_link()) {
@@ -182,6 +191,10 @@ public class EventReceiver implements CommandLineRunner {
             + new Date().getTime());
     logger.debug("ACTION: " + action + " PAYLOAD " + nsr.toString());
 
+    // Neutron handles removing ports with the allocated QoS itself
+    if (nse_configuration.getDriver().equals("neutron")) {
+      return;
+    }
     for (VirtualNetworkFunctionRecord vnfr : nsr.getVnfr()) {
       logger.debug("VNFR: " + vnfr.toString());
       for (InternalVirtualLink vlr : vnfr.getVirtual_link()) {
