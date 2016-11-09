@@ -129,6 +129,11 @@ public class Neutron_AddQoSExecutor implements Runnable {
       Access access =
           this.getAccess(
               creds.get("identity"), nova_provider, creds.get("password"), creds.get("auth"));
+
+      // For a multi node environment we also need to steal the neutron-ip, therefor we work with the acess object directly
+      String neutron_access = neutron_handler.parceNeutronEndpoint(access);
+      creds.put("neutron", neutron_access + "/v2.0");
+
       logger.debug("Received auth token");
       // Check which QoS policies are available already
       response =
@@ -349,10 +354,6 @@ public class Neutron_AddQoSExecutor implements Runnable {
       cred.put("password", v.getPassword());
       //logger.debug("adding nova auth url "+ v.getAuthUrl());
       cred.put("auth", v.getAuthUrl());
-      // parse the auth url to create the neutron auth url
-      //logger.debug("adding neutron auth_url");
-      cred.put(
-          "neutron", v.getAuthUrl().substring(0, v.getAuthUrl().lastIndexOf(":")) + ":9696/v2.0");
     } catch (Exception e) {
       logger.error("Exception while creating credentials");
       logger.error(e.getMessage());

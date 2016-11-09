@@ -154,6 +154,47 @@ public class QoSHandler {
     return false;
   }
 
+  public String parceNeutronEndpoint(Access access) {
+    try {
+      String json = access.toString();
+      // Unfortunaltely we are not working on valid JSON here...
+      /*
+      // get rid of the beginning to have valid json...
+      json = json.substring(6);
+      logger.debug(json);
+      JSONObject ac = new JSONObject(json);
+      JSONArray services = ac.getJSONArray("serviceCatalog");
+      for (int i = 0; i < services.length(); i++) {
+        JSONObject s = services.getJSONObject(i);
+        logger.debug("Iterating over Service : " + s.getString("name"));
+        // If the name is neutron we want to get the public URL
+        if (s.getString("name").equals("neutron")) {
+          JSONArray endpoints = s.getJSONArray("endpoints");
+          // Well actually this should only be a 1 entry array here
+          for (int x = 0; x < endpoints.length(); x++) {
+            JSONObject e = endpoints.getJSONObject(x);
+            return e.getString("publicURL");
+          }
+        }
+      }
+      */
+      // Cut all from the beginning until we are at the serviceCatalog
+      json = json.substring(json.indexOf("serviceCatalog"));
+      // Now cut all until we find our neutron service
+      json = json.substring(json.indexOf("neutron"));
+      // Now advance to the publicURL
+      json = json.substring(json.indexOf("publicURL"));
+      // Next cut off the rest after the ","
+      json = json.substring(0, json.indexOf(","));
+      return json.substring(json.indexOf("=") + 1);
+    } catch (Exception e) {
+      logger.error(e.getMessage());
+      logger.error(e.toString());
+    }
+    logger.error("Did not found neutron endpoint");
+    return null;
+  }
+
   public boolean checkPortQoSPolicy(String response, String id) {
     String port_qos_id = null;
     try {
