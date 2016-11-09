@@ -70,6 +70,8 @@ public class Neutron_AddQoSExecutor implements Runnable {
   private NFVORequestor requestor;
   private QoSHandler neutron_handler;
 
+  private Access pacc;
+
   public Neutron_AddQoSExecutor(
       Set<VirtualNetworkFunctionRecord> vnfrs, NfvoProperties configuration, QoSHandler handler) {
     this.vnfrs = vnfrs;
@@ -127,6 +129,11 @@ public class Neutron_AddQoSExecutor implements Runnable {
       Access access =
           this.getAccess(
               creds.get("identity"), nova_provider, creds.get("password"), creds.get("auth"));
+
+      // For a multi node environment we also need to steal the neutron-ip, therefor we work with the acess object directly
+      String neutron_access = neutron_handler.parceNeutronEndpoint(access);
+      creds.put("neutron", neutron_access + "/v2.0");
+
       logger.debug("Received auth token");
       // Check which QoS policies are available already
       response =
@@ -308,18 +315,29 @@ public class Neutron_AddQoSExecutor implements Runnable {
 
   private Access getAccess(
       String identity, String nova_provider, String password, String endpoint) {
-    ContextBuilder contextBuilder =
-        ContextBuilder.newBuilder(nova_provider).credentials(identity, password).endpoint(endpoint);
-    ComputeServiceContext context = contextBuilder.buildView(ComputeServiceContext.class);
-    Function<Credentials, Access> auth =
-        context
-            .utils()
-            .injector()
-            .getInstance(Key.get(new TypeLiteral<Function<Credentials, Access>>() {}));
-    Access access =
-        auth.apply(
-            new Credentials.Builder<Credentials>().identity(identity).credential(password).build());
-    return access;
+    // TODO : Verify the old token "pacc" before just simply passing it ...
+    if (pacc == null) {
+      ContextBuilder contextBuilder =
+          ContextBuilder.newBuilder(nova_provider)
+              .credentials(identity, password)
+              .endpoint(endpoint);
+      ComputeServiceContext context = contextBuilder.buildView(ComputeServiceContext.class);
+      Function<Credentials, Access> auth =
+          context
+              .utils()
+              .injector()
+              .getInstance(Key.get(new TypeLiteral<Function<Credentials, Access>>() {}));
+      Access access =
+          auth.apply(
+              new Credentials.Builder<Credentials>()
+                  .identity(identity)
+                  .credential(password)
+                  .build());
+      // Save the "token"
+      this.pacc = access;
+      return access;
+    }
+    return pacc;
   }
 
   private Map<String, String> getDatacenterCredentials(NFVORequestor requestor, String vim_id) {
@@ -336,10 +354,6 @@ public class Neutron_AddQoSExecutor implements Runnable {
       cred.put("password", v.getPassword());
       //logger.debug("adding nova auth url "+ v.getAuthUrl());
       cred.put("auth", v.getAuthUrl());
-      // parse the auth url to create the neutron auth url
-      //logger.debug("adding neutron auth_url");
-      cred.put(
-          "neutron", v.getAuthUrl().substring(0, v.getAuthUrl().lastIndexOf(":")) + ":9696/v2.0");
     } catch (Exception e) {
       logger.error("Exception while creating credentials");
       logger.error(e.getMessage());
@@ -351,6 +365,7 @@ public class Neutron_AddQoSExecutor implements Runnable {
 
   // Adds additional to the other loop the vim_ids of the related vnfr
   private List<DetailedQoSReference> getDetailedQosesRefs(Set<VirtualNetworkFunctionRecord> vnfrs) {
+    Boolean dup;
     Map<String, Quality> qualities = this.getVlrs(vnfrs);
     List<DetailedQoSReference> res = new ArrayList<>();
     for (VirtualNetworkFunctionRecord vnfr : vnfrs) {
@@ -360,24 +375,62 @@ public class Neutron_AddQoSExecutor implements Runnable {
           for (VNFCInstance vnfci : vdu.getVnfc_instance()) {
             for (VNFDConnectionPoint cp : vnfci.getConnection_point()) {
               //logger.debug("Creating new QoSReference");
-              DetailedQoSReference ref = new DetailedQoSReference();
               // In the agent, the check goes over the network name, which makes problems
               // if both services are using the same network, but different qualities...
               // We modified the check here to go over the vnfr name
-              ref.setQuality(qualities.get(vnfr.getName()));
-              ref.setVim_id(vnfci.getVim_id());
-              // TODO , what will happen here if we have multiple networks? ...
+              Map<String, Quality> netQualities = this.getNetQualityMap(vnfrs, vnfr.getName());
               for (Ip ip : vnfci.getIps()) {
-                ref.setIp(ip.getIp());
+                String net = ip.getNetName();
+                if (netQualities.keySet().contains(net)) {
+                  // Avoid duplicate entries
+                  dup = false;
+                  for (DetailedQoSReference t : res) {
+                    if (t.getIp().equals(ip.getIp())) {
+                      dup = true;
+                    }
+                  }
+                  if (!dup) {
+                    DetailedQoSReference ref = new DetailedQoSReference();
+                    ref.setQuality(qualities.get(vnfr.getName()));
+                    ref.setVim_id(vnfci.getVim_id());
+                    ref.setIp(ip.getIp());
+                    logger.debug("GET QOSES REF: adding reference to list " + ref.toString());
+                    res.add(ref);
+                  }
+                }
               }
-              logger.debug("GET QOSES REF: adding reference to list " + ref.toString());
-              res.add(ref);
             }
           }
         }
       } else {
         logger.debug(
             "There are no qualities defined for " + vnfr.getName() + " in " + qualities.toString());
+      }
+    }
+    return res;
+  }
+
+  private Map<String, Quality> getNetQualityMap(
+      Set<VirtualNetworkFunctionRecord> vnfrs, String vnfrName) {
+    Map<String, Quality> res = new LinkedHashMap<>();
+    logger.debug("GETTING VLRS");
+    for (VirtualNetworkFunctionRecord vnfr : vnfrs) {
+      if (vnfr.getName().equals(vnfrName)) {
+        for (InternalVirtualLink vlr : vnfr.getVirtual_link()) {
+          for (String qosParam : vlr.getQos()) {
+            if (qosParam.contains("minimum_bandwith")) {
+              Quality quality = this.mapValueQuality(qosParam);
+              //res.put(vlr.getName(), quality);
+              res.put(vlr.getName(), quality);
+              //logger.debug("GET VIRTUAL LINK RECORD: insert in map vlr name " + vlr.getName() + " with quality " + quality);
+              logger.debug(
+                  "GET VIRTUAL LINK RECORD: insert in map vlr name "
+                      + vnfr.getName()
+                      + " with quality "
+                      + quality);
+            }
+          }
+        }
       }
     }
     return res;
