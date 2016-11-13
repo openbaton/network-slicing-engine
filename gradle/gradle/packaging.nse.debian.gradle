@@ -43,6 +43,7 @@ task makedeb(type: Deb, dependsOn: [jar, build]) {
     preUninstall file('gradle/gradle/scripts/debian/prerm')
 
     requires('openjdk-7-jre')
+    requires('openbaton-plugin-monitoring-zabbix')
 
     // Copy files from "from path" to "into path"
     from("etc/nse.properties") {                                                                                                // properties file
