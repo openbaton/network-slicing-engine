@@ -1,4 +1,4 @@
-#!/bin/sh 
+#!/bin/sh
 
 # Copyright (c) 2016 Open Baton (http://www.openbaton.org)
 #
@@ -31,27 +31,43 @@ set -u
 #### Global Variables ####
 ##########################
 
-OPENBATON_COMPONENT_NAME_FANCY="Network Slicing Engine (ASE)"
+OPENBATON_COMPONENT_NAME_FANCY="Network Slicing Engine (NSE)"
 OPENBATON_COMPONENT_NAME=nse
+OPENBATON_COMPONENT_RELATIVE_SUBPATH=nse
 
 OPENBATON_COMPONENT_JAR_FILE_NAME=openbaton-${OPENBATON_COMPONENT_NAME}
+OPENBATON_COMPONENT_JAR_INSTALL_DIR=/usr/lib/openbaton/${OPENBATON_COMPONENT_RELATIVE_SUBPATH}
 
 
 ####################
 #### Open Baton ####
 ####################
 
-stop_running () {
-    instance=$(ps aux | grep -v grep | grep "${OPENBATON_COMPONENT_JAR_FILE_NAME}" | grep "jar" | wc -l)
-    if [ ${instance} -ne 0 ]; then
-        if systemctl stop openbaton-${OPENBATON_COMPONENT_NAME}.service >/dev/null 2>&1 ; then
-            log_success_msg "Stopping the Open Baton ${OPENBATON_COMPONENT_NAME_FANCY} .."
-        elif stop openbaton-${OPENBATON_COMPONENT_NAME} >/dev/null 2>&1 ; then
-            log_success_msg "Stopping the Open Baton ${OPENBATON_COMPONENT_NAME} .."
-        else
-            log_failure_msg "Stopping the Open Baton ${OPENBATON_COMPONENT_NAME}"
+remove_existing_old_version_installed () {
+    if [ -d ${OPENBATON_COMPONENT_JAR_INSTALL_DIR} ]; then
+        openbaton_component_jar_file_name_versioned=$(ls -ct ${OPENBATON_COMPONENT_JAR_INSTALL_DIR} | grep "${OPENBATON_COMPONENT_JAR_FILE_NAME}" | grep "jar" | head -n 1)
+        if [ "${openbaton_component_jar_file_name_versioned}" != "" ]; then
+            rm ${OPENBATON_COMPONENT_JAR_INSTALL_DIR}/${openbaton_component_jar_file_name_versioned}
+            log_success_msg "Removing old Open Baton ${OPENBATON_COMPONENT_NAME_FANCY} .."
         fi
     fi
 }
 
-stop_running
+
+##############
+#### Main ####
+##############
+
+case "${1}" in  
+    install|upgrade)
+        remove_existing_old_version_installed
+        ;;
+    remove|failed-upgrade|abort-install|abort-upgrade|disappear)
+        ;;
+    *)
+        log_failure_msg "preinst called with unknown argument ${1}"
+        exit 1
+        ;;
+esac
+
+exit 0

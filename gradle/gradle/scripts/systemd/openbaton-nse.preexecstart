@@ -1,4 +1,4 @@
-#!/bin/sh 
+#!/bin/sh
 
 # Copyright (c) 2016 Open Baton (http://www.openbaton.org)
 #
@@ -31,27 +31,32 @@ set -u
 #### Global Variables ####
 ##########################
 
-OPENBATON_COMPONENT_NAME_FANCY="Network Slicing Engine (ASE)"
-OPENBATON_COMPONENT_NAME=nse
-
-OPENBATON_COMPONENT_JAR_FILE_NAME=openbaton-${OPENBATON_COMPONENT_NAME}
+OPENBATON_COMPONENT_SYSTEMD_ENV_FILE=/usr/lib/openbaton/systemd/env/openbaton-nse.env
 
 
-####################
-#### Open Baton ####
-####################
+##############
+#### Main ####
+##############
 
-stop_running () {
+pre_exec_start () {
+    OSTYPE=$(uname)
+
+    ####################
+    #### Open Baton ####
+    ####################
+
+    # Check if the Open Baton "${OPENBATON_COMPONENT_NAME}" is already running
     instance=$(ps aux | grep -v grep | grep "${OPENBATON_COMPONENT_JAR_FILE_NAME}" | grep "jar" | wc -l)
     if [ ${instance} -ne 0 ]; then
-        if systemctl stop openbaton-${OPENBATON_COMPONENT_NAME}.service >/dev/null 2>&1 ; then
-            log_success_msg "Stopping the Open Baton ${OPENBATON_COMPONENT_NAME_FANCY} .."
-        elif stop openbaton-${OPENBATON_COMPONENT_NAME} >/dev/null 2>&1 ; then
-            log_success_msg "Stopping the Open Baton ${OPENBATON_COMPONENT_NAME} .."
-        else
-            log_failure_msg "Stopping the Open Baton ${OPENBATON_COMPONENT_NAME}"
-        fi
+        log_warning_msg "The Open Baton ${OPENBATON_COMPONENT_NAME_FANCY} is already running"
+        exit 1
     fi
+    # Select which Open Baton "${OPENBATON_COMPONENT_NAME}"  version to start
+    if [ "${openbaton_component_jar_file_name_versioned}" = "" ]; then
+        log_failure_msg "The Open Baton ${OPENBATON_COMPONENT_NAME_FANCY} is not installed (jar-file not found)"
+        exit 1
+    fi
+    sed -i "s/OPENBATON_COMPONENT_JAR_FILE_NAME_VERSIONED=.*/OPENBATON_COMPONENT_JAR_FILE_NAME_VERSIONED=${openbaton_component_jar_file_name_versioned}/g" ${OPENBATON_COMPONENT_SYSTEMD_ENV_FILE}
 }
 
-stop_running
+pre_exec_start
