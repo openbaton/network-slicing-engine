@@ -50,7 +50,7 @@ apply from: 'gradle/gradle/git.helpers.gradle'
 apply from: 'gradle/gradle/command.line.helper.gradle'
 
 project.ext {
-    openbatonVersion = "3.2.1-SNAPSHOT"
+    openbatonVersion = "3.2.0"
     /**
      * Application Related Version
      */
