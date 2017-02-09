@@ -73,7 +73,7 @@ public class OpenbatonConfiguration {
         throw new NotFoundException("Not found project " + nfvoProperties.getProject().getName());
       }
     } catch (SDKException | ClassNotFoundException e) {
-      throw new SDKException(e.getMessage());
+      throw new SDKException(e);
     }
     return nfvoRequestor;
   }

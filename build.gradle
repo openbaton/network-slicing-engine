@@ -30,29 +30,27 @@ plugins {
     id 'com.github.sherter.google-java-format' version '0.3.2'
 }
 
-group 'org.nubomedia'
+group 'org.openbaton'
 
 repositories {
     mavenCentral()
+    maven {
+        url "https://oss.sonatype.org/content/repositories/snapshots/"
+    }
+    maven {
+        url "https://oss.sonatype.org/content/repositories/releases/"
+    }
 }
 
 apply plugin: 'java'
 apply plugin: 'spring-boot'
 apply from: 'gradle/gradle/git.release.gradle'
 
-
-repositories {
-    mavenCentral()
-    maven {
-        url "http://get.openbaton.org:8081/nexus/content/groups/public"
-    }
-}
-
 apply from: 'gradle/gradle/git.helpers.gradle'
 apply from: 'gradle/gradle/command.line.helper.gradle'
 
 project.ext {
-    openbatonVersion = "3.0.0"
+    openbatonVersion = "3.2.1-SNAPSHOT"
     /**
      * Application Related Version
      */
