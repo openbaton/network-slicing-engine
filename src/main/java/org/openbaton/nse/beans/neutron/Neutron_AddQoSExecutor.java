@@ -68,8 +68,9 @@ public class Neutron_AddQoSExecutor implements Runnable {
   //private OpenstackConfiguration configuration;
   private NfvoProperties configuration;
   private NFVORequestor requestor;
+  //class to handle direct communication to neutron
   private QoSHandler neutron_handler;
-
+  //object to allow direct communication to neutron, all it saves is actually a token for openstack api usage
   private Access pacc;
 
   public Neutron_AddQoSExecutor(
@@ -101,169 +102,95 @@ public class Neutron_AddQoSExecutor implements Runnable {
       requestor.setProjectId(vnfr.getProjectId());
       logger.debug("Setting project id to : " + vnfr.getProjectId());
     }
-    String nova_provider = "openstack-nova";
-    NovaApi novaApi;
-    String neutron_provider = "openstack-neutron";
-    NeutronApi neutronApi;
-    String response;
-    Set<String> regions;
-    Map<String, String> qos_map;
-    //List<QoSReference> qoses = this.getQosesRefs(vnfrs);
+    // The first thing to do is to check all received virtual network function records
+    // for defined bandwidth qualities , thus we create a list containing each
+    // (quality,vim_id,ip) which contains all we need to know for using neutron to establish
+    // the bandwidth limitations
     List<DetailedQoSReference> qoses = this.getDetailedQosesRefs(vnfrs);
-    // first of all get the datacenter we want to work on!
+    //List<QoSReference> qoses = this.getQosesRefs(vnfrs);
     for (DetailedQoSReference r : qoses) {
-      //logger.debug("Checking for PoP "+r.getVim_id());
+      // Now extract the information for the configured virtualized infrastructure manager
       Map<String, String> creds = this.getDatacenterCredentials(requestor, r.getVim_id());
       //logger.debug("Finished receiving credentials");
-      logger.debug("adding qoses for " + qoses.toString());
-      // Use nova to list our endpoints at a later stage
-      Iterable<Module> modules = ImmutableSet.<Module>of(new SLF4JLoggingModule());
-      novaApi =
-          ContextBuilder.newBuilder(nova_provider)
-              .credentials(creds.get("identity"), creds.get("password"))
-              .endpoint(creds.get("auth"))
-              .modules(modules)
-              .buildApi(NovaApi.class);
-
-      // We will steal the x-auth token here, to be able to directly communicate with the neutron qos rest api
+      logger.debug("Adding QoS for " + qoses.toString());
+      // Setting up jclouds related novaApi to be used to check for registered endpoints ( such as neutron )
+      NovaApi novaApi = this.getNovaApi(creds);
+      // We will steal the x-auth token here, to be able to directly communicate with the neutron and nova
+      // The token is stored in the Access object
+      logger.debug("Nova is available at : " + creds.get("auth"));
+      logger.debug("Trying to receive auth-token for direct openstack api communication");
       Access access =
           this.getAccess(
-              creds.get("identity"), nova_provider, creds.get("password"), creds.get("auth"));
-
-      // For a multi node environment we also need to steal the neutron-ip, therefor we work with the acess object directly
-      String neutron_access = neutron_handler.parceNeutronEndpoint(access);
-      creds.put("neutron", neutron_access + "/v2.0");
-
+              creds.get("identity"), "openstack-nova", creds.get("password"), creds.get("auth"));
       logger.debug("Received auth token");
+      // For a multi node environment we also need to steal the neutron-ip,
+      // therefor we work with the acess object directly and parse the ip configured for neutron
+      // ( So we use the information from nova to know where neutron is running )
+      String neutron_access = neutron_handler.parseNeutronEndpoint(access);
+      // extending the credentials with the neutron endpoint
+      // TODO : export neutron api version or read it via nova
+      creds.put("neutron", neutron_access + "/v2.0");
+      logger.debug("Neutron is avaiable at : " + neutron_access + "/v2.0");
       // Check which QoS policies are available already
-      response =
-          neutron_handler.neutron_http_connection(
-              creds.get("neutron") + "/qos/policies", "GET", access, null);
-      if (response == null) {
-        logger.error("Error trying to list existing QoS policies");
-        return;
-      }
-      // Save those in a hash map for later usage
-      qos_map = neutron_handler.parsePolicyMap(response);
-      logger.debug(qos_map.toString());
-      // With neutron we collect the necessary values to know which ports to modify
-      neutronApi =
-          ContextBuilder.newBuilder(neutron_provider)
-              .credentials(creds.get("identity"), creds.get("password"))
-              .endpoint(creds.get("auth"))
-              .buildApi(NeutronApi.class);
-      regions = novaApi.getConfiguredRegions();
+      logger.debug("Checking which QoS policies are already configured for neutron");
+      Map<String, String> qos_map = getNeutronQoSPolicies(neutron_handler, creds, access);
+      logger.debug("Following QoS policies are configured already : " + qos_map.toString());
+      // Setting up jclouds related neutronApi to list all ports ( Information about ipv4 addresses in Openstack )
+      // With the ( ids for the ips ) received we can following apply QoS policies to specific ports
+      NeutronApi neutronApi = this.getNeutronApi(creds);
+      // So we need to get the correct port api of the neutron api,
+      // this is why we will ask nova to give us this information
+      Set<String> regions = novaApi.getConfiguredRegions();
       for (String region : regions) {
+        // loop over each region
         PortApi portApi = neutronApi.getPortApi(region);
+        // list us all ports configured for that region
         Ports ports = portApi.list(PaginationOptions.Builder.limit(2).marker("abcdefg"));
-        // For all neutron ports
-        logger.debug("Iterarting over neutron ports");
+        logger.debug("Checking all neutron ports for region : " + region);
         for (Port p : ports) {
           String ips = p.getFixedIps().toString();
           for (QoSReference ref : qoses) {
-            // Check for our ip addresses
+            // Check for our ip addresses, we simply use a string check here so we do not need to parse the input
             if (ips.contains(ref.getIp())) {
-              logger.debug("port id : " + p.getId() + " will get qos " + ref.getQuality().name());
-              // The native cm agent metered the bandwidth a bit different
+              logger.debug(
+                  "Port with the id : "
+                      + p.getId()
+                      + " will get QoS policy : "
+                      + ref.getQuality().name());
+              // The native cm agent metered the bandwidth a bit different, this is why we need to divide the
+              // entries of the qualities by a specific number
               String bandwidth =
                   String.valueOf(Integer.parseInt(ref.getQuality().getMax_rate()) / 1000);
-              // if the quaility is missing, we should CREATE IT
+              // if the quality is missing, we should CREATE IT
+              logger.debug(
+                  "Checking if QoS policy :" + ref.getQuality().name() + " exists in Openstack");
               if (qos_map.get(ref.getQuality().name()) == null) {
-                logger.debug("Did not found qos-policy with name " + ref.getQuality().name());
-                logger.debug("Will create qos-policy : " + ref.getQuality().name());
+                logger.debug("Did not found QoS policy with name " + ref.getQuality().name());
+                logger.debug("Will create QoS-policy : " + ref.getQuality().name());
                 // Creating the not existing QoS policy
-                response =
-                    neutron_handler.neutron_http_connection(
-                        creds.get("neutron") + "/qos/policies",
-                        "POST",
-                        access,
-                        neutron_handler.createPolicyPayload(ref.getQuality().name()));
-                if (response == null) {
-                  logger.error("Error trying to create QoS policy");
-                  return;
-                }
-                logger.debug("Created policy :" + response);
-                String created_pol_id = neutron_handler.parsePolicyId(response);
+                String created_pol_id = this.createQoSPolicy(creds, neutron_handler, ref, access);
                 // Since we now have the correct id of the policy , lets create the bandwidth rule
-                response =
-                    neutron_handler.neutron_http_connection(
-                        creds.get("neutron")
-                            + "/qos/policies/"
-                            + created_pol_id
-                            + "/bandwidth_limit_rules",
-                        "POST",
-                        access,
-                        neutron_handler.createBandwidthLimitRulePayload(bandwidth));
-                if (response == null) {
-                  logger.error("Error trying to create bandwidth rule for QoS policy");
-                  return;
-                }
-                logger.debug(
-                    "Created bandwidth rule for policy" + created_pol_id + ": " + response);
+                createBandwidthRule(creds, created_pol_id, neutron_handler, bandwidth, access);
               } else {
                 // At least print a warning here if the policy bandwidth rule differs from the one we wanted to create,
                 // this means a user touched it already
-                logger.debug("found qos-policy with name " + ref.getQuality().name());
+                logger.debug("Found QoS policy with name " + ref.getQuality().name());
                 String qos_id = qos_map.get(ref.getQuality().name());
-                response =
-                    neutron_handler.neutron_http_connection(
-                        creds.get("neutron") + "/qos/policies/" + qos_id, "GET", access, null);
-                if (response == null) {
-                  logger.error(
-                      "Error trying to show information for existing QoS policy : "
-                          + ref.getQuality().name());
-                  return;
-                }
-                logger.debug(response);
-                if (neutron_handler.checkForBandwidthRule(response, bandwidth)) {
-                  logger.debug("policy looks fine");
-                } else {
-                  // TODO : Add a configuration parameter telling us what to do , ignore the difference or update bandwidth rule
-                  logger.warn(
-                      "The policy "
-                          + ref.getQuality().name()
-                          + " on "
-                          + creds.get("auth")
-                          + " has been touched, remove the QoS policy to get rid of this warning");
-                }
+                checkBandwidthRule(bandwidth, qos_id, neutron_handler, creds, ref, access);
               }
-              // Check which QoS policies are available now
-              response =
-                  neutron_handler.neutron_http_connection(
-                      creds.get("neutron") + "/qos/policies", "GET", access, null);
-              if (response == null) {
-                logger.error("Error trying to list existing QoS policies");
-                return;
-              }
-              // update the QoS Policy map
-              qos_map = neutron_handler.parsePolicyMap(response);
+              // Check which QoS policies are available now and update the qos_map
+              qos_map = getNeutronQoSPolicies(neutron_handler, creds, access);
+              logger.debug("Updating QoS policy list of neutron");
               logger.debug(qos_map.toString());
               // At this point we can be sure the policy exists
               logger.debug("associated qos_policy is " + qos_map.get(ref.getQuality().name()));
               // Check if the port already got the correct qos-policy assigned
-              response =
-                  neutron_handler.neutron_http_connection(
-                      creds.get("neutron") + "/ports/" + p.getId() + ".json", "GET", access, null);
-              // if port already got the qos_policy we want to add, abort ( to avoid sending more traffic )
-              if (!neutron_handler.checkPortQoSPolicy(
-                  response, qos_map.get(ref.getQuality().name()))) {
-                logger.debug("Port information before updating : " + response);
-                // update port
-                response =
-                    neutron_handler.neutron_http_connection(
-                        creds.get("neutron") + "/ports/" + p.getId() + ".json",
-                        "PUT",
-                        access,
-                        neutron_handler.createPolicyUpdatePayload(
-                            qos_map.get(ref.getQuality().name())));
-              } else {
-                logger.debug("Port QoS policy does not need to be updated");
-              }
+              checkAndFixAssignedPolicies(neutron_handler, p, creds, qos_map, ref, access);
             }
           }
           //logger.debug("Finished iterating over QoS references");
         }
-        //logger.debug("Finished Iterating over neutron ports");
+        logger.debug("Finished checking for all neutron ports for region : " + region);
       }
       // Close the APIs
       try {
@@ -276,6 +203,137 @@ public class Neutron_AddQoSExecutor implements Runnable {
     }
   }
 
+  // method to instantiate the novaApi with information from a specific virtualized infrastructure manager (VIM)
+  private NovaApi getNovaApi(Map<String, String> creds) {
+    Iterable<Module> modules = ImmutableSet.<Module>of(new SLF4JLoggingModule());
+    NovaApi novaApi =
+        ContextBuilder.newBuilder("openstack-nova")
+            .credentials(creds.get("identity"), creds.get("password"))
+            .endpoint(creds.get("auth"))
+            .modules(modules)
+            .buildApi(NovaApi.class);
+    return novaApi;
+  }
+
+  // method to instantiate the neutronApi with information from a specific virtualized infrastructure manager (VIM)
+  private NeutronApi getNeutronApi(Map<String, String> creds) {
+    NeutronApi neutronApi =
+        ContextBuilder.newBuilder("openstack-neutron")
+            .credentials(creds.get("identity"), creds.get("password"))
+            .endpoint(creds.get("auth"))
+            .buildApi(NeutronApi.class);
+    return neutronApi;
+  }
+
+  // method to create a non existing QoS policy in Openstack
+  private String createQoSPolicy(
+      Map<String, String> creds, QoSHandler neutron_handler, QoSReference ref, Access access) {
+    String response =
+        neutron_handler.neutron_http_connection(
+            creds.get("neutron") + "/qos/policies",
+            "POST",
+            access,
+            neutron_handler.createPolicyPayload(ref.getQuality().name()));
+    if (response == null) {
+      logger.error("Error trying to create QoS policy :" + ref.getQuality().name());
+      return null;
+    }
+    logger.debug("Created policy :" + response);
+    return neutron_handler.parsePolicyId(response);
+  }
+
+  // method to create a non existing QoS policy in Openstack
+  private void createBandwidthRule(
+      Map<String, String> creds,
+      String created_pol_id,
+      QoSHandler neutron_handler,
+      String bandwidth,
+      Access access) {
+    String response =
+        neutron_handler.neutron_http_connection(
+            creds.get("neutron") + "/qos/policies/" + created_pol_id + "/bandwidth_limit_rules",
+            "POST",
+            access,
+            neutron_handler.createBandwidthLimitRulePayload(bandwidth));
+    if (response == null) {
+      logger.error("Error trying to create bandwidth rule for QoS policy");
+      return;
+    }
+    logger.debug("Created bandwidth rule for policy" + created_pol_id + ": " + response);
+  }
+
+  // method to check existing QoS policy and its bandwidth rules for changes
+  private void checkBandwidthRule(
+      String bandwidth,
+      String qos_id,
+      QoSHandler neutron_handler,
+      Map<String, String> creds,
+      QoSReference ref,
+      Access access) {
+    String response =
+        neutron_handler.neutron_http_connection(
+            creds.get("neutron") + "/qos/policies/" + qos_id, "GET", access, null);
+    if (response == null) {
+      logger.error(
+          "Error trying to show information for existing QoS policy : " + ref.getQuality().name());
+      return;
+    }
+    //logger.debug(response);
+    if (neutron_handler.checkForBandwidthRule(response, bandwidth)) {
+      logger.debug(
+          "QoS policy : " + ref.getQuality().name() + " is the same as defined in Openstack");
+    } else {
+      // TODO : Add a configuration parameter telling us what to do , ignore the difference or update bandwidth rule
+      logger.warn(
+          "The QoS policy "
+              + ref.getQuality().name()
+              + " on "
+              + creds.get("auth")
+              + " has been modified in Openstack, remove the QoS policy in Openstack to get rid of this warning");
+    }
+  }
+
+  // method to list all QoS policies configured in neutron
+  private Map<String, String> getNeutronQoSPolicies(
+      QoSHandler neutron_handler, Map<String, String> creds, Access access) {
+    String response =
+        neutron_handler.neutron_http_connection(
+            creds.get("neutron") + "/qos/policies", "GET", access, null);
+    if (response == null) {
+      logger.error("Error trying to list existing QoS policies for Neutron");
+      return null;
+    }
+    // Save the already configured policies in a hash map for later usage
+    return neutron_handler.parsePolicyMap(response);
+  }
+
+  // method to check and modify a neutron port for defined policies compared to the ones from the virtual network function record
+  private void checkAndFixAssignedPolicies(
+      QoSHandler neutron_handler,
+      Port p,
+      Map<String, String> creds,
+      Map<String, String> qos_map,
+      QoSReference ref,
+      Access access) {
+    String response =
+        neutron_handler.neutron_http_connection(
+            creds.get("neutron") + "/ports/" + p.getId() + ".json", "GET", access, null);
+    // if port already got the qos_policy we want to add, abort ( to avoid sending more traffic )
+    if (!neutron_handler.checkPortQoSPolicy(response, qos_map.get(ref.getQuality().name()))) {
+      logger.debug("Neutron port information before updating : " + response);
+      // update port
+      response =
+          neutron_handler.neutron_http_connection(
+              creds.get("neutron") + "/ports/" + p.getId() + ".json",
+              "PUT",
+              access,
+              neutron_handler.createPolicyUpdatePayload(qos_map.get(ref.getQuality().name())));
+    } else {
+      logger.debug("Port : " + p.getId() + " QoS policy does not need to be updated");
+    }
+  }
+
+  // Simple method to check if a set of connection points contain configured bandwidth qualities
   private boolean hasQoS(Map<String, Quality> qualities, Set<VNFDConnectionPoint> ifaces) {
     for (VNFDConnectionPoint cp : ifaces) {
       if (qualities.keySet().contains(cp.getVirtual_link_reference())) return true;
@@ -283,6 +341,7 @@ public class Neutron_AddQoSExecutor implements Runnable {
     return false;
   }
 
+  // Method reform a set of virtual network functions to a map containing the name of the record and its quality
   private Map<String, Quality> getVlrs(Set<VirtualNetworkFunctionRecord> vnfrs) {
     Map<String, Quality> res = new LinkedHashMap<>();
     logger.debug("GETTING VLRS");
@@ -306,6 +365,7 @@ public class Neutron_AddQoSExecutor implements Runnable {
     return res;
   }
 
+  // Method the map the qualities defined in the virtual network function record to the values defined in the quality class
   private Quality mapValueQuality(String value) {
     logger.debug("MAPPING VALUE-QUALITY: received value " + value);
     String[] qos = value.split(":");
@@ -313,6 +373,7 @@ public class Neutron_AddQoSExecutor implements Runnable {
     return Quality.valueOf(qos[1]);
   }
 
+  // Function to get a x-auth token for direct openstack api communication
   private Access getAccess(
       String identity, String nova_provider, String password, String endpoint) {
     // TODO : Verify the old token "pacc" before just simply passing it ...
@@ -340,6 +401,7 @@ public class Neutron_AddQoSExecutor implements Runnable {
     return pacc;
   }
 
+  // Function to extract credentials directly out of a virtualized infrastructure manager ( VIM )
   private Map<String, String> getDatacenterCredentials(NFVORequestor requestor, String vim_id) {
     Map<String, String> cred = new HashMap<String, String>();
     // What we want to archieve is to list all machines and know to which vim-instance they belong
@@ -363,9 +425,13 @@ public class Neutron_AddQoSExecutor implements Runnable {
     return cred;
   }
 
-  // Adds additional to the other loop the vim_ids of the related vnfr
+  // Function to extract information about : (quality,vim_id,ip) from a set of virtual network function records
+  // Thus we collect all data we need to know : which network service uses which virtualized infrastructure manager so
+  // we know to which neutronApi to connect to ( Since we may use a multi_datacenter deployment here ) to set the
+  // defined quality
   private List<DetailedQoSReference> getDetailedQosesRefs(Set<VirtualNetworkFunctionRecord> vnfrs) {
     Boolean dup;
+    // Get a list of virtual network function record names and their assigned qualities
     Map<String, Quality> qualities = this.getVlrs(vnfrs);
     List<DetailedQoSReference> res = new ArrayList<>();
     for (VirtualNetworkFunctionRecord vnfr : vnfrs) {
@@ -375,7 +441,7 @@ public class Neutron_AddQoSExecutor implements Runnable {
           for (VNFCInstance vnfci : vdu.getVnfc_instance()) {
             for (VNFDConnectionPoint cp : vnfci.getConnection_point()) {
               //logger.debug("Creating new QoSReference");
-              // In the agent, the check goes over the network name, which makes problems
+              // In the connectivity manager agent, the check goes over the network name, which makes problems
               // if both services are using the same network, but different qualities...
               // We modified the check here to go over the vnfr name
               Map<String, Quality> netQualities = this.getNetQualityMap(vnfrs, vnfr.getName());
@@ -410,6 +476,8 @@ public class Neutron_AddQoSExecutor implements Runnable {
     return res;
   }
 
+  // method to create a map of virtual network function names combined with their configured qualities
+  // TODO : Check if there are problems if defining a vnfr with 2 different qualities on 2 networks
   private Map<String, Quality> getNetQualityMap(
       Set<VirtualNetworkFunctionRecord> vnfrs, String vnfrName) {
     Map<String, Quality> res = new LinkedHashMap<>();

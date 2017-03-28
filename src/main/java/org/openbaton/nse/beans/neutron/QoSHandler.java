@@ -154,7 +154,7 @@ public class QoSHandler {
     return false;
   }
 
-  public String parceNeutronEndpoint(Access access) {
+  public String parseNeutronEndpoint(Access access) {
     try {
       String json = access.toString();
       // Unfortunaltely we are not working on valid JSON here...
