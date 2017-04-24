@@ -52,7 +52,7 @@ public class QoSHandler {
    * if something gone bad, you will receive null
    */
   public String neutron_http_connection(
-      String t_url, String method, Access access, JSONObject payload) {
+      String t_url, String method, Object access, JSONObject payload) {
     logger.debug("Building up neutron http connection : " + t_url + " method : " + method);
     HttpURLConnection connection = null;
     URL url = null;
@@ -73,7 +73,15 @@ public class QoSHandler {
         return null;
       }
       connection.setDoOutput(true);
-      connection.setRequestProperty("X-Auth-Token", access.getToken().getId());
+      if (access instanceof Access){
+        connection.setRequestProperty("X-Auth-Token", ((Access)access).getToken().getId());
+      } else if (access instanceof String){
+        connection.setRequestProperty("X-Auth-Token", ((String)access));
+      } else {
+        logger.error("Access object was neither String or Access");
+        return null;
+      }
+
       connection.setRequestProperty("User-Agent", "python-neutronclient");
       if (payload != null) {
         OutputStreamWriter output = new OutputStreamWriter(connection.getOutputStream());

@@ -76,6 +76,8 @@ dependencies {
     compile ('org.apache.jclouds.driver:jclouds-sshj:1.9.2')
     compile ('org.apache.jclouds.api:openstack-nova:1.9.2')
     compile ('org.apache.jclouds.labs:openstack-neutron:1.9.2')
+
+    compile group: 'org.pacesys', name: 'openstack4j-core', version: '3.0.3'
 }
 
 bootRepackage {
