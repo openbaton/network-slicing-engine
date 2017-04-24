@@ -49,7 +49,9 @@ import org.openbaton.nse.utils.Quality;
 import org.openbaton.sdk.NFVORequestor;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.api.exceptions.AuthenticationException;
+import org.openstack4j.api.identity.v2.ServiceManagerService;
 import org.openstack4j.model.common.Identifier;
+import org.openstack4j.model.identity.v2.Service;
 import org.openstack4j.model.identity.v2.ServiceEndpoint;
 import org.openstack4j.model.identity.v3.Endpoint;
 import org.openstack4j.model.identity.v3.Region;
@@ -605,6 +607,7 @@ public class Neutron_AddQoSExecutor implements Runnable {
       List<Endpoint> l =
           (List<Endpoint>) ((OSClient.OSClientV3) os).identity().serviceEndpoints().listEndpoints();
       for (Endpoint e : l) {
+        logger.debug("Checking for : " + e.getName() +" at "+ e.getUrl());
         if (e.getName().contains("neutron")) {
           logger.debug("Found neutron at : " + e.getUrl().toString());
           return e.getUrl().toString();
@@ -612,32 +615,29 @@ public class Neutron_AddQoSExecutor implements Runnable {
       }
     } else {
       logger.debug("Trying to get neutron url with v2");
+      ServiceManagerService sm = ((OSClient.OSClientV2) os).identity().services();
+      List<? extends Service> services = sm.list();
+      List<? extends ServiceEndpoint> ep = sm.listEndpoints();
       Map<String, String> serviceMap = new HashMap<String, String>();
       // A bit more complicated here, we will create a map containing id and names of the services
-      List<org.openstack4j.model.identity.v2.Service> sl =
-          (List<org.openstack4j.model.identity.v2.Service>)
-              ((OSClient.OSClientV2) os).identity().services().list();
-      if (sl.isEmpty()) {
+      if (services.isEmpty()) {
         logger.debug("Service List is empty!");
       }
       logger.debug("Creating associative array containing services id and names");
-      for (org.openstack4j.model.identity.v2.Service s : sl) {
+      for (Service s : services) {
         logger.debug("Adding " + s.getId() + " : " + s.getName());
         serviceMap.put(s.getId(), s.getName());
       }
-      List<ServiceEndpoint> l =
-          (List<ServiceEndpoint>) ((OSClient.OSClientV2) os).identity().services().listEndpoints();
-      if (l.isEmpty()) {
+      if (ep.isEmpty()) {
         logger.debug("Service Endpoint List is empty!");
       }
-      for (ServiceEndpoint se : l) {
+      for (ServiceEndpoint se : ep) {
         logger.debug("Checking " + serviceMap.get(se.getServiceId()) + " : " + se.getServiceId());
         if (serviceMap.get(se.getServiceId()).contains("neutron")) {
           logger.debug("Found neutron at : " + se.getPublicURL().toString());
           return se.getPublicURL().toString();
         }
       }
-      return ((OSClient.OSClientV2) os).getAccess().getToken().getId();
     }
     logger.error("Did not found any neutron url");
     return null;
