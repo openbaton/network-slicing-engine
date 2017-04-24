@@ -73,10 +73,10 @@ public class QoSHandler {
         return null;
       }
       connection.setDoOutput(true);
-      if (access instanceof Access){
-        connection.setRequestProperty("X-Auth-Token", ((Access)access).getToken().getId());
-      } else if (access instanceof String){
-        connection.setRequestProperty("X-Auth-Token", ((String)access));
+      if (access instanceof Access) {
+        connection.setRequestProperty("X-Auth-Token", ((Access) access).getToken().getId());
+      } else if (access instanceof String) {
+        connection.setRequestProperty("X-Auth-Token", ((String) access));
       } else {
         logger.error("Access object was neither String or Access");
         return null;

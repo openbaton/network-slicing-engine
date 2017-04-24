@@ -123,40 +123,40 @@ public class Neutron_AddQoSExecutor implements Runnable {
 
       //##############################################################
 
-      boolean useJclouds=false;
+      boolean useJclouds = false;
 
       if (!useJclouds) {
         logger.debug("Using openstack4j clients");
         // Get the correct VIM instance
-        logger.debug("Using vim : "+r.getVim_id());
-        VimInstance v = this.getVimInstance(requestor,r.getVim_id());
+        logger.debug("Using vim : " + r.getVim_id());
+        VimInstance v = this.getVimInstance(requestor, r.getVim_id());
         logger.debug("Initializing openstack4j os client");
         OSClient os = this.getOSClient(v);
-        String token = this.getAuthToken(os,v);
-        String neutron_access = this.getNeutronEndpoint(os,v);
+        String token = this.getAuthToken(os, v);
+        String neutron_access = this.getNeutronEndpoint(os, v);
 
         Map<String, String> qos_map = getNeutronQoSPolicies(neutron_handler, creds, token);
 
         creds.put("neutron", neutron_access);
-        List <org.openstack4j.model.network.Port> portList = this.getNeutronPorts(os);
+        List<org.openstack4j.model.network.Port> portList = this.getNeutronPorts(os);
 
-        for (org.openstack4j.model.network.Port p : portList){
+        for (org.openstack4j.model.network.Port p : portList) {
           String ips = p.getFixedIps().toString();
           for (QoSReference ref : qoses) {
             // Check for our ip addresses, we simply use a string check here so we do not need to parse the input
             if (ips.contains(ref.getIp())) {
               logger.debug(
-                      "Port with the id : "
-                              + p.getId()
-                              + " will get QoS policy : "
-                              + ref.getQuality().name());
+                  "Port with the id : "
+                      + p.getId()
+                      + " will get QoS policy : "
+                      + ref.getQuality().name());
               // The native cm agent metered the bandwidth a bit different, this is why we need to divide the
               // entries of the qualities by a specific number
               String bandwidth =
-                      String.valueOf(Integer.parseInt(ref.getQuality().getMax_rate()) / 1000);
+                  String.valueOf(Integer.parseInt(ref.getQuality().getMax_rate()) / 1000);
               // if the quality is missing, we should CREATE IT
               logger.debug(
-                      "Checking if QoS policy :" + ref.getQuality().name() + " exists in Openstack");
+                  "Checking if QoS policy :" + ref.getQuality().name() + " exists in Openstack");
               if (qos_map.get(ref.getQuality().name()) == null) {
                 logger.debug("Did not found QoS policy with name " + ref.getQuality().name());
                 logger.debug("Will create QoS-policy : " + ref.getQuality().name());
@@ -182,10 +182,6 @@ public class Neutron_AddQoSExecutor implements Runnable {
             }
           }
         }
-
-
-
-        //##############################################################
       } else {
         logger.debug("Using jclouds clients");
         // Setting up jclouds related novaApi to be used to check for registered endpoints ( such as neutron )
@@ -193,8 +189,8 @@ public class Neutron_AddQoSExecutor implements Runnable {
         logger.debug("Nova is available at : " + creds.get("auth"));
         logger.debug("Trying to receive auth-token for direct openstack api communication");
         Access access =
-                this.getAccess(
-                        creds.get("identity"), "openstack-nova", creds.get("password"), creds.get("auth"));
+            this.getAccess(
+                creds.get("identity"), "openstack-nova", creds.get("password"), creds.get("auth"));
         logger.debug("Received auth token");
         // We will steal the x-auth token here, to be able to directly communicate with the neutron and nova
         // The token is stored in the Access object
@@ -229,17 +225,17 @@ public class Neutron_AddQoSExecutor implements Runnable {
               // Check for our ip addresses, we simply use a string check here so we do not need to parse the input
               if (ips.contains(ref.getIp())) {
                 logger.debug(
-                        "Port with the id : "
-                                + p.getId()
-                                + " will get QoS policy : "
-                                + ref.getQuality().name());
+                    "Port with the id : "
+                        + p.getId()
+                        + " will get QoS policy : "
+                        + ref.getQuality().name());
                 // The native cm agent metered the bandwidth a bit different, this is why we need to divide the
                 // entries of the qualities by a specific number
                 String bandwidth =
-                        String.valueOf(Integer.parseInt(ref.getQuality().getMax_rate()) / 1000);
+                    String.valueOf(Integer.parseInt(ref.getQuality().getMax_rate()) / 1000);
                 // if the quality is missing, we should CREATE IT
                 logger.debug(
-                        "Checking if QoS policy :" + ref.getQuality().name() + " exists in Openstack");
+                    "Checking if QoS policy :" + ref.getQuality().name() + " exists in Openstack");
                 if (qos_map.get(ref.getQuality().name()) == null) {
                   logger.debug("Did not found QoS policy with name " + ref.getQuality().name());
                   logger.debug("Will create QoS-policy : " + ref.getQuality().name());
@@ -277,8 +273,6 @@ public class Neutron_AddQoSExecutor implements Runnable {
           e.printStackTrace();
         }
       }
-
-
     }
   }
 
@@ -395,47 +389,45 @@ public class Neutron_AddQoSExecutor implements Runnable {
       QoSReference ref,
       Object access) {
 
-    if (p instanceof org.jclouds.openstack.neutron.v2.domain.Port){
+    if (p instanceof org.jclouds.openstack.neutron.v2.domain.Port) {
       Port np = (Port) p;
       String response =
-              neutron_handler.neutron_http_connection(
-                      creds.get("neutron") + "/ports/" + np.getId() + ".json", "GET", access, null);
+          neutron_handler.neutron_http_connection(
+              creds.get("neutron") + "/ports/" + np.getId() + ".json", "GET", access, null);
       // if port already got the qos_policy we want to add, abort ( to avoid sending more traffic )
       if (!neutron_handler.checkPortQoSPolicy(response, qos_map.get(ref.getQuality().name()))) {
         logger.debug("Neutron port information before updating : " + response);
         // update port
         response =
-                neutron_handler.neutron_http_connection(
-                        creds.get("neutron") + "/ports/" + np.getId() + ".json",
-                        "PUT",
-                        access,
-                        neutron_handler.createPolicyUpdatePayload(qos_map.get(ref.getQuality().name())));
+            neutron_handler.neutron_http_connection(
+                creds.get("neutron") + "/ports/" + np.getId() + ".json",
+                "PUT",
+                access,
+                neutron_handler.createPolicyUpdatePayload(qos_map.get(ref.getQuality().name())));
       } else {
         logger.debug("Port : " + np.getId() + " QoS policy does not need to be updated");
       }
-    } else if (p instanceof org.openstack4j.model.network.Port){
+    } else if (p instanceof org.openstack4j.model.network.Port) {
       org.openstack4j.model.network.Port np = (org.openstack4j.model.network.Port) p;
       String response =
-              neutron_handler.neutron_http_connection(
-                      creds.get("neutron") + "/ports/" + np.getId() + ".json", "GET", access, null);
+          neutron_handler.neutron_http_connection(
+              creds.get("neutron") + "/ports/" + np.getId() + ".json", "GET", access, null);
       // if port already got the qos_policy we want to add, abort ( to avoid sending more traffic )
       if (!neutron_handler.checkPortQoSPolicy(response, qos_map.get(ref.getQuality().name()))) {
         logger.debug("Neutron port information before updating : " + response);
         // update port
         response =
-                neutron_handler.neutron_http_connection(
-                        creds.get("neutron") + "/ports/" + np.getId() + ".json",
-                        "PUT",
-                        access,
-                        neutron_handler.createPolicyUpdatePayload(qos_map.get(ref.getQuality().name())));
+            neutron_handler.neutron_http_connection(
+                creds.get("neutron") + "/ports/" + np.getId() + ".json",
+                "PUT",
+                access,
+                neutron_handler.createPolicyUpdatePayload(qos_map.get(ref.getQuality().name())));
       } else {
         logger.debug("Port : " + np.getId() + " QoS policy does not need to be updated");
       }
     } else {
       logger.error("Port object was neither jclouds or openstack4j");
     }
-
-
   }
 
   // Simple method to check if a set of connection points contain configured bandwidth qualities
@@ -505,7 +497,6 @@ public class Neutron_AddQoSExecutor implements Runnable {
     }
     return pacc;
   }
-
 
   // Function to directly get a VimInstance by its id
   private VimInstance getVimInstance(NFVORequestor requestor, String vim_id) {
@@ -599,40 +590,52 @@ public class Neutron_AddQoSExecutor implements Runnable {
   }
 
   // Method to get a x auth token using the openstack4j clients
-  private String getAuthToken(OSClient os,VimInstance vimInstance) {
-      if (isV3API(vimInstance)) {
-            return ((OSClient.OSClientV3) os).getToken().getId();
-      } else {
-            return ((OSClient.OSClientV2) os).getAccess().getToken().getId();
-      }
+  private String getAuthToken(OSClient os, VimInstance vimInstance) {
+    if (isV3API(vimInstance)) {
+      return ((OSClient.OSClientV3) os).getToken().getId();
+    } else {
+      return ((OSClient.OSClientV2) os).getAccess().getToken().getId();
+    }
   }
 
   // Method to get the correct neutron url to communicate with
-  private String getNeutronEndpoint(OSClient os,VimInstance vimInstance) {
+  private String getNeutronEndpoint(OSClient os, VimInstance vimInstance) {
     if (isV3API(vimInstance)) {
       logger.debug("Trying to get neutron url with v3");
-      List<Endpoint> l = (List<Endpoint>) ((OSClient.OSClientV3) os).identity().serviceEndpoints().listEndpoints();
-      for (Endpoint e : l){
-        if (e.getName().contains("neutron")){
-          logger.debug("Found neutron at : "+e.getUrl().toString());
+      List<Endpoint> l =
+          (List<Endpoint>) ((OSClient.OSClientV3) os).identity().serviceEndpoints().listEndpoints();
+      for (Endpoint e : l) {
+        if (e.getName().contains("neutron")) {
+          logger.debug("Found neutron at : " + e.getUrl().toString());
           return e.getUrl().toString();
         }
       }
     } else {
       logger.debug("Trying to get neutron url with v2");
-      Map<String,String> serviceMap = new HashMap<String,String>();
+      Map<String, String> serviceMap = new HashMap<String, String>();
       // A bit more complicated here, we will create a map containing id and names of the services
-      List<org.openstack4j.model.identity.v2.Service> sl = (List<org.openstack4j.model.identity.v2.Service>)((OSClient.OSClientV2) os).identity().services().list();
-      logger.debug("Creating associative array containing services id and names");
-      for (org.openstack4j.model.identity.v2.Service s : sl){
-        serviceMap.put(s.getId(),s.getName());
+      List<org.openstack4j.model.identity.v2.Service> sl =
+          (List<org.openstack4j.model.identity.v2.Service>)
+              ((OSClient.OSClientV2) os).identity().services().list();
+      if (sl.isEmpty()) {
+        logger.debug("Service List is empty!");
       }
-      List<ServiceEndpoint> l = (List<ServiceEndpoint>) ((OSClient.OSClientV2) os).identity().services().listEndpoints();
-      for (ServiceEndpoint se : l){
-          if (serviceMap.get(se.getServiceId()).contains("neutron")){
-            logger.debug("Found neztrin at : "+se.getPublicURL().toString());
-            return se.getPublicURL().toString();
-          }
+      logger.debug("Creating associative array containing services id and names");
+      for (org.openstack4j.model.identity.v2.Service s : sl) {
+        logger.debug("Adding " + s.getId() + " : " + s.getName());
+        serviceMap.put(s.getId(), s.getName());
+      }
+      List<ServiceEndpoint> l =
+          (List<ServiceEndpoint>) ((OSClient.OSClientV2) os).identity().services().listEndpoints();
+      if (l.isEmpty()) {
+        logger.debug("Service Endpoint List is empty!");
+      }
+      for (ServiceEndpoint se : l) {
+        logger.debug("Checking " + serviceMap.get(se.getServiceId()) + " : " + se.getServiceId());
+        if (serviceMap.get(se.getServiceId()).contains("neutron")) {
+          logger.debug("Found neutron at : " + se.getPublicURL().toString());
+          return se.getPublicURL().toString();
+        }
       }
       return ((OSClient.OSClientV2) os).getAccess().getToken().getId();
     }
@@ -640,11 +643,11 @@ public class Neutron_AddQoSExecutor implements Runnable {
     return null;
   }
 
-  private List <org.openstack4j.model.network.Port> getNeutronPorts(OSClient os) {
-    List <org.openstack4j.model.network.Port> lp = (List<org.openstack4j.model.network.Port>) os.networking().port().list();
+  private List<org.openstack4j.model.network.Port> getNeutronPorts(OSClient os) {
+    List<org.openstack4j.model.network.Port> lp =
+        (List<org.openstack4j.model.network.Port>) os.networking().port().list();
     return lp;
   }
-
 
   private OSClient getOSClient(VimInstance vimInstance) {
     OSClient os = null;
@@ -657,51 +660,51 @@ public class Neutron_AddQoSExecutor implements Runnable {
         logger.debug("Project id: " + project.getId());
 
         os =
-                OSFactory.builderV3()
-                        .endpoint(vimInstance.getAuthUrl())
-                        .scopeToProject(project)
-                        .credentials(vimInstance.getUsername(), vimInstance.getPassword(), domain)
-                        .authenticate();
+            OSFactory.builderV3()
+                .endpoint(vimInstance.getAuthUrl())
+                .scopeToProject(project)
+                .credentials(vimInstance.getUsername(), vimInstance.getPassword(), domain)
+                .authenticate();
         if (vimInstance.getLocation() != null
-                && vimInstance.getLocation().getName() != null
-                && !vimInstance.getLocation().getName().isEmpty()) {
+            && vimInstance.getLocation().getName() != null
+            && !vimInstance.getLocation().getName().isEmpty()) {
           try {
             Region region =
-                    ((OSClient.OSClientV3) os)
-                            .identity()
-                            .regions()
-                            .get(vimInstance.getLocation().getName());
+                ((OSClient.OSClientV3) os)
+                    .identity()
+                    .regions()
+                    .get(vimInstance.getLocation().getName());
 
             if (region != null) {
               ((OSClient.OSClientV3) os).useRegion(vimInstance.getLocation().getName());
             }
           } catch (Exception ignored) {
             logger.warn(
-                    "Not found region '"
-                            + vimInstance.getLocation().getName()
-                            + "'. Use default one...");
+                "Not found region '"
+                    + vimInstance.getLocation().getName()
+                    + "'. Use default one...");
             return os;
           }
         }
       } else {
         os =
-                OSFactory.builderV2()
-                        .endpoint(vimInstance.getAuthUrl())
-                        .credentials(vimInstance.getUsername(), vimInstance.getPassword())
-                        .tenantName(vimInstance.getTenant())
-                        .authenticate();
+            OSFactory.builderV2()
+                .endpoint(vimInstance.getAuthUrl())
+                .credentials(vimInstance.getUsername(), vimInstance.getPassword())
+                .tenantName(vimInstance.getTenant())
+                .authenticate();
 
         if (vimInstance.getLocation() != null
-                && vimInstance.getLocation().getName() != null
-                && !vimInstance.getLocation().getName().isEmpty()) {
+            && vimInstance.getLocation().getName() != null
+            && !vimInstance.getLocation().getName().isEmpty()) {
           try {
             ((OSClient.OSClientV2) os).useRegion(vimInstance.getLocation().getName());
             ((OSClient.OSClientV2) os).identity().listTokenEndpoints();
           } catch (Exception e) {
             logger.warn(
-                    "Not found region '"
-                            + vimInstance.getLocation().getName()
-                            + "'. Use default one...");
+                "Not found region '"
+                    + vimInstance.getLocation().getName()
+                    + "'. Use default one...");
             ((OSClient.OSClientV2) os).removeRegion();
           }
         }
@@ -717,7 +720,6 @@ public class Neutron_AddQoSExecutor implements Runnable {
   private boolean isV3API(VimInstance vimInstance) {
     return vimInstance.getAuthUrl().endsWith("/v3") || vimInstance.getAuthUrl().endsWith("/v3.0");
   }
-
 
   // method to create a map of virtual network function names combined with their configured qualities
   // TODO : Check if there are problems if defining a vnfr with 2 different qualities on 2 networks
