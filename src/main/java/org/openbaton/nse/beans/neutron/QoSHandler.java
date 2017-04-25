@@ -255,4 +255,56 @@ public class QoSHandler {
     String tmp = pol.getJSONObject("policy").getString("id");
     return tmp;
   }
+
+  public String get_service_endpoint(String t_url, String access, String service_id) {
+    logger.debug("Building up nova http connection : " + t_url);
+    HttpURLConnection connection = null;
+    URL url = null;
+    try {
+      url = new URL(t_url);
+      connection = (HttpURLConnection) url.openConnection();
+      connection.setDoOutput(true);
+      connection.setRequestMethod("GET");
+      connection.setRequestProperty("Accept", "application/json");
+      connection.setRequestProperty("Content-Type", "application/json");
+      connection.setRequestProperty("X-Auth-Token", access);
+      connection.setRequestProperty("User-Agent", "python-novaclient");
+      InputStream is = connection.getInputStream();
+      BufferedReader rd = new BufferedReader(new InputStreamReader(is));
+      StringBuilder response = new StringBuilder();
+      String line;
+      while ((line = rd.readLine()) != null) {
+        response.append(line);
+        response.append('\r');
+      }
+      rd.close();
+      connection.disconnect();
+      if (response != null) {
+        logger.debug("Got response from nova : " + response.toString());
+      } else {
+        logger.debug("Got response from nova : null ");
+      }
+      JSONObject tmp = new JSONObject(response.toString());
+      JSONArray endpoints = tmp.getJSONArray("endpoints");
+      logger.debug("There are " + endpoints.length() + " endpoints listed");
+      for (int i = 0; i < endpoints.length(); i++) {
+        JSONObject o = endpoints.getJSONObject(i);
+        if (o.getString("service_id").equals(service_id)) {
+          if (o.getString("interface").equals("public")) {
+            return o.getString("url");
+          }
+        }
+      }
+      logger.error("Did not found endpoint");
+      return null;
+
+    } catch (Exception e) {
+      logger.error("Problem contacting openstack-nova");
+      logger.error(e.getMessage());
+      logger.error(e.toString());
+      e.printStackTrace();
+      // If we have found a problem, we should probably end this thread
+      return null;
+    }
+  }
 }

@@ -132,7 +132,7 @@ public class Neutron_AddQoSExecutor implements Runnable {
         logger.debug("Initializing openstack4j os client");
         OSClient os = this.getOSClient(v);
         String token = this.getAuthToken(os, v);
-        String neutron_access = this.getNeutronEndpoint(os, v);
+        String neutron_access = this.getNeutronEndpoint(os, v, token, neutron_handler);
         // Add the neutron related information into our credential map
         creds.put("neutron", neutron_access);
 
@@ -604,20 +604,63 @@ public class Neutron_AddQoSExecutor implements Runnable {
   }
 
   // Method to get the correct neutron url to communicate with
-  private String getNeutronEndpoint(OSClient os, VimInstance vimInstance) {
-    // TODO : to be tested
+  private String getNeutronEndpoint(
+      OSClient os, VimInstance vimInstance, String token, QoSHandler neutron_handler) {
     if (isV3API(vimInstance)) {
       logger.debug("Trying to get neutron url with v3");
-      List<Endpoint> l =
-          (List<Endpoint>) ((OSClient.OSClientV3) os).identity().serviceEndpoints().listEndpoints();
-      for (Endpoint e : l) {
-        logger.debug("Checking for : " + e.getName() + " at " + e.getUrl());
-        if (e.getName().contains("neutron")) {
-          logger.debug("Found neutron at : " + e.getUrl().toString());
-          return e.getUrl().toString();
+      logger.debug(
+          "Token-Catalog : " + ((OSClient.OSClientV3) os).getToken().getCatalog().toString());
+      // We use the Token-Catalog to get all necessary
+      int catalogue_size = ((OSClient.OSClientV3) os).getToken().getCatalog().size();
+      for (int i = 0; i < catalogue_size; i++) {
+        org.openstack4j.model.identity.v3.Service s =
+            ((OSClient.OSClientV3) os).getToken().getCatalog().get(i);
+        logger.debug("Checking service " + s.getName());
+        if (s.getName().equals("neutron")) {
+          logger.debug("Found neutron service_id");
+          logger.debug("Endpoints are " + s.getEndpoints().toString());
+          List<? extends Endpoint> e_list = s.getEndpoints();
+          for (Endpoint e : e_list) {
+            logger.debug("Checking endpoint of type : " + e.getIface().value());
+            if (e.getIface().value().equals("public")) {
+              logger.debug("Using api version 2 for neutron");
+              return e.getUrl().toString() + "/v2.0";
+            }
+          }
         }
       }
+      //logger.debug("Token : " + ((OSClient.OSClientV3) os).getToken().toString());
+      //logger.debug(
+      //    "Token-Catalog : " + ((OSClient.OSClientV3) os).getToken().getCatalog().toString());
+      //logger.debug(
+      //    " endpoint-list"
+      //        + ((OSClient.OSClientV3) os)
+      //            .identity()
+      //            .serviceEndpoints()
+      //            .listEndpoints()
+      //            .toString());
+      //logger.debug(
+      //    "Aggregated-Token-Catalog : "
+      //        + ((OSClient.OSClientV3) os).getToken().getAggregatedCatalog().toString());
+      //logger.debug("Endpoint at : " + os.getEndpoint());
+      //logger.debug(
+      //    "Domains : " + ((OSClient.OSClientV3) os).identity().domains().list().toString());
+      //logger.debug(
+      //    "Service-Endpoints " + ((OSClient.OSClientV3) os).identity().serviceEndpoints().list());
+      //logger.debug(
+      //    "Service Catalog : "
+      //        + ((OSClient.OSClientV3) os).identity().tokens().getServiceCatalog(token));
+      //List<Endpoint> l =
+      //    (List<Endpoint>) ((OSClient.OSClientV3) os).identity().serviceEndpoints().listEndpoints();
+      //for (Endpoint e : l) {
+      //  logger.debug("Checking for : " + e.getName() + " at " + e.getUrl());
+      //  if (e.getName().contains("neutron")) {
+      //    logger.debug("Found neutron at : " + e.getUrl().toString());
+      //    return e.getUrl().toString();
+      //  }
+      //}
     } else {
+      // TODO : outsource and try get values cleaner , e.g. via json like it is done in QoSHandler
       //logger.debug("Supported services : " + os.getSupportedServices().toString());
       logger.debug("Trying to get neutron url with v2");
       // Well a way to get the desired values is to use the tokenEndpoints
