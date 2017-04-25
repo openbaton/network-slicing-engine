@@ -122,11 +122,8 @@ public class Neutron_AddQoSExecutor implements Runnable {
       Map<String, String> creds = this.getDatacenterCredentials(requestor, r.getVim_id());
       //logger.debug("Finished receiving credentials");
       logger.debug("Adding QoS for " + qoses.toString());
-
-      //##############################################################
-
+      // TODO : make this a option variable to be able to choose between jclouds and openstack4j
       boolean useJclouds = false;
-
       if (!useJclouds) {
         logger.debug("Using openstack4j clients");
         // Get the correct VIM instance
@@ -136,10 +133,11 @@ public class Neutron_AddQoSExecutor implements Runnable {
         OSClient os = this.getOSClient(v);
         String token = this.getAuthToken(os, v);
         String neutron_access = this.getNeutronEndpoint(os, v);
+        // Add the neutron related information into our credential map
+        creds.put("neutron", neutron_access);
 
         Map<String, String> qos_map = getNeutronQoSPolicies(neutron_handler, creds, token);
 
-        creds.put("neutron", neutron_access);
         List<org.openstack4j.model.network.Port> portList = this.getNeutronPorts(os);
 
         for (org.openstack4j.model.network.Port p : portList) {
@@ -593,51 +591,73 @@ public class Neutron_AddQoSExecutor implements Runnable {
 
   // Method to get a x auth token using the openstack4j clients
   private String getAuthToken(OSClient os, VimInstance vimInstance) {
+    String token = null;
     if (isV3API(vimInstance)) {
-      return ((OSClient.OSClientV3) os).getToken().getId();
+      logger.debug("Using v3 api to get auth token");
+      token = ((OSClient.OSClientV3) os).getToken().getId();
     } else {
-      return ((OSClient.OSClientV2) os).getAccess().getToken().getId();
+      logger.debug("Using v2 api to get auth token");
+      token = ((OSClient.OSClientV2) os).getAccess().getToken().getId();
     }
+    logger.debug("Received token : " + token);
+    return token;
   }
 
   // Method to get the correct neutron url to communicate with
   private String getNeutronEndpoint(OSClient os, VimInstance vimInstance) {
+    // TODO : to be tested
     if (isV3API(vimInstance)) {
       logger.debug("Trying to get neutron url with v3");
       List<Endpoint> l =
           (List<Endpoint>) ((OSClient.OSClientV3) os).identity().serviceEndpoints().listEndpoints();
       for (Endpoint e : l) {
-        logger.debug("Checking for : " + e.getName() +" at "+ e.getUrl());
+        logger.debug("Checking for : " + e.getName() + " at " + e.getUrl());
         if (e.getName().contains("neutron")) {
           logger.debug("Found neutron at : " + e.getUrl().toString());
           return e.getUrl().toString();
         }
       }
     } else {
+      //logger.debug("Supported services : " + os.getSupportedServices().toString());
       logger.debug("Trying to get neutron url with v2");
-      ServiceManagerService sm = ((OSClient.OSClientV2) os).identity().services();
-      List<? extends Service> services = sm.list();
-      List<? extends ServiceEndpoint> ep = sm.listEndpoints();
-      Map<String, String> serviceMap = new HashMap<String, String>();
+      // Well a way to get the desired values is to use the tokenEndpoints
+      String tokenEndpoints = ((OSClient.OSClientV2) os).identity().listTokenEndpoints().toString();
+      // Now cut all until we find our neutron service
+      String neutron_endpoint = tokenEndpoints.substring(tokenEndpoints.indexOf("neutron"));
+      // Now advance to the publicURL
+      neutron_endpoint = neutron_endpoint.substring(neutron_endpoint.indexOf("publicURL"));
+      // Next cut off the rest after the ","
+      neutron_endpoint = neutron_endpoint.substring(0, neutron_endpoint.indexOf(","));
+      // And finally remove the leading publicURL=
+      neutron_endpoint = neutron_endpoint.replaceAll("publicURL=", "");
+      // And add the API version
+      neutron_endpoint = neutron_endpoint + "/v2.0";
+
+      logger.debug("Neutron is reachable at : " + neutron_endpoint);
+      return neutron_endpoint;
+      //ServiceManagerService sm = ((OSClient.OSClientV2) os).identity().services();
+      //List<? extends Service> services = sm.list();
+      //List<? extends ServiceEndpoint> ep = sm.listEndpoints();
+      //Map<String, String> serviceMap = new HashMap<String, String>();
       // A bit more complicated here, we will create a map containing id and names of the services
-      if (services.isEmpty()) {
-        logger.debug("Service List is empty!");
-      }
-      logger.debug("Creating associative array containing services id and names");
-      for (Service s : services) {
-        logger.debug("Adding " + s.getId() + " : " + s.getName());
-        serviceMap.put(s.getId(), s.getName());
-      }
-      if (ep.isEmpty()) {
-        logger.debug("Service Endpoint List is empty!");
-      }
-      for (ServiceEndpoint se : ep) {
-        logger.debug("Checking " + serviceMap.get(se.getServiceId()) + " : " + se.getServiceId());
-        if (serviceMap.get(se.getServiceId()).contains("neutron")) {
-          logger.debug("Found neutron at : " + se.getPublicURL().toString());
-          return se.getPublicURL().toString();
-        }
-      }
+      //if (services.isEmpty()) {
+      //  logger.debug("Service List is empty!");
+      //}
+      //logger.debug("Creating associative array containing services id and names");
+      //for (Service s : services) {
+      //  logger.debug("Adding " + s.getId() + " : " + s.getName());
+      //  serviceMap.put(s.getId(), s.getName());
+      //}
+      //if (ep.isEmpty()) {
+      //  logger.debug("Service Endpoint List is empty!");
+      //}
+      //for (ServiceEndpoint se : ep) {
+      //  logger.debug("Checking " + serviceMap.get(se.getServiceId()) + " : " + se.getServiceId());
+      //  if (serviceMap.get(se.getServiceId()).contains("neutron")) {
+      //    logger.debug("Found neutron at : " + se.getPublicURL().toString());
+      //    return se.getPublicURL().toString();
+      //  }
+      //}
     }
     logger.error("Did not found any neutron url");
     return null;
