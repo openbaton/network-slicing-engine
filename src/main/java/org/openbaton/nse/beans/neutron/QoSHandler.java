@@ -229,6 +229,7 @@ public class QoSHandler {
         port_qos_id = (String) o;
         if (port_qos_id.equals(id)) {
           // we do not need a update of the port
+          logger.debug("Port already got the correct QoS policy assigned");
           return true;
         }
       }

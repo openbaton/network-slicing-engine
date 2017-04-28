@@ -42,6 +42,7 @@ import org.openbaton.catalogue.mano.descriptor.VirtualDeploymentUnit;
 import org.openbaton.catalogue.mano.record.VNFCInstance;
 import org.openbaton.catalogue.mano.record.VirtualNetworkFunctionRecord;
 import org.openbaton.catalogue.nfvo.VimInstance;
+import org.openbaton.nse.properties.NetworkSlicingEngineProperties;
 import org.openbaton.nse.properties.NfvoProperties;
 import org.openbaton.nse.utils.DetailedQoSReference;
 import org.openbaton.nse.utils.QoSReference;
@@ -53,6 +54,7 @@ import org.openstack4j.model.common.Identifier;
 import org.openstack4j.openstack.OSFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -76,6 +78,7 @@ public class Neutron_AddQoSExecutor implements Runnable {
   private QoSHandler neutron_handler;
   //object to allow direct communication to neutron, all it saves is actually a token for openstack api usage
   private Access pacc;
+  @Autowired private NetworkSlicingEngineProperties nse_conf;
 
   public Neutron_AddQoSExecutor(
       Set<VirtualNetworkFunctionRecord> vnfrs, NfvoProperties configuration, QoSHandler handler) {
@@ -118,10 +121,16 @@ public class Neutron_AddQoSExecutor implements Runnable {
       Map<String, String> creds = this.getDatacenterCredentials(requestor, r.getVim_id());
       //logger.debug("Finished receiving credentials");
       logger.debug("Working on  : " + r.toString());
-      // TODO : make this a option variable to be able to choose between jclouds and openstack4j
-      // TODO : avoid running twice the same task
-      boolean useJclouds = false;
-      if (!useJclouds) {
+      // Check which library type is configured, by default use openstack4j
+      // setting a default value
+      String library_type = "openstack4j";
+      try {
+        logger.debug("Reading library_type from config file");
+        library_type = nse_conf.getLibrary_type();
+      } catch (Exception e) {
+        logger.debug("Did not found library_type in config file, using default");
+      }
+      if (!library_type.equals("jclouds") || library_type == null) {
         logger.debug("Using openstack4j libraries");
         // Get the correct VIM instance
         logger.debug("Using vim : " + r.getVim_id());
@@ -144,10 +153,9 @@ public class Neutron_AddQoSExecutor implements Runnable {
                     + p.getId()
                     + " will get QoS policy : "
                     + r.getQuality().name());
-            // The native cm agent metered the bandwidth a bit different, this is why we need to divide the
-            // entries of the qualities by a specific number
+            // The native cm agent metered the bandwidth in bytes per second, openstack uses kilo bytes per second
             String bandwidth =
-                String.valueOf(Integer.parseInt(r.getQuality().getMax_rate()) / 1000);
+                String.valueOf(Integer.parseInt(r.getQuality().getMax_rate()) / 1024);
             // if the quality is missing, we should CREATE IT
             logger.debug(
                 "Checking if QoS policy : " + r.getQuality().name() + " exists in Openstack");
@@ -222,10 +230,9 @@ public class Neutron_AddQoSExecutor implements Runnable {
                         + p.getId()
                         + " will get QoS policy : "
                         + ref.getQuality().name());
-                // The native cm agent metered the bandwidth a bit different, this is why we need to divide the
-                // entries of the qualities by a specific number
+                // The native cm agent metered the bandwidth in bytes per second, openstack uses kilo bytes per second
                 String bandwidth =
-                    String.valueOf(Integer.parseInt(ref.getQuality().getMax_rate()) / 1000);
+                    String.valueOf(Integer.parseInt(ref.getQuality().getMax_rate()) / 1024);
                 // if the quality is missing, we should CREATE IT
                 logger.debug(
                     "Checking if QoS policy : " + ref.getQuality().name() + " exists in Openstack");
@@ -397,8 +404,15 @@ public class Neutron_AddQoSExecutor implements Runnable {
                 "PUT",
                 access,
                 neutron_handler.createPolicyUpdatePayload(qos_map.get(ref.getQuality().name())));
+        logger.info(
+            "Finished assigning QoS policy " + ref.getQuality().name() + " to port " + np.getId());
       } else {
-        logger.debug("The QoS policy for port : " + np.getId() + " does not need to be updated");
+        logger.info(
+            "Finished , port "
+                + np.getId()
+                + " already got QoS policy "
+                + ref.getQuality().name()
+                + " assigned");
       }
     } else if (p instanceof org.openstack4j.model.network.Port) {
       org.openstack4j.model.network.Port np = (org.openstack4j.model.network.Port) p;
@@ -415,11 +429,18 @@ public class Neutron_AddQoSExecutor implements Runnable {
                 "PUT",
                 access,
                 neutron_handler.createPolicyUpdatePayload(qos_map.get(ref.getQuality().name())));
+        logger.info(
+            "Finished assigning QoS policy " + ref.getQuality().name() + " to port " + np.getId());
       } else {
-        logger.debug("Port : " + np.getId() + " QoS policy does not need to be updated");
+        logger.info(
+            "Finished , port "
+                + np.getId()
+                + " already got QoS policy "
+                + ref.getQuality().name()
+                + " assigned");
       }
     } else {
-      logger.error("Port object was neither jclouds or openstack4j");
+      logger.error("Port object was neither jclouds or openstack4j tyoe");
     }
   }
 
@@ -658,7 +679,7 @@ public class Neutron_AddQoSExecutor implements Runnable {
       List<? extends org.openstack4j.model.identity.v2.Endpoint> endpoint_list =
           ((OSClient.OSClientV2) os).identity().listTokenEndpoints();
       for (org.openstack4j.model.identity.v2.Endpoint e : endpoint_list) {
-        logger.debug("Checking endpoint : " + e.getName());
+        //logger.debug("Checking endpoint : " + e.getName());
         if (e.getName().equals("neutron")) {
           logger.debug("Found neutron endpoint with type : " + e.getType());
           if (e.getType().equals("network")) {

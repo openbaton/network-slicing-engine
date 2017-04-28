@@ -33,7 +33,11 @@ import javax.annotation.PostConstruct;
 public class NetworkSlicingEngineProperties {
 
   private String baseUrl;
+
   private String driver;
+
+  private String library_type;
+
   private Logger logger = LoggerFactory.getLogger(this.getClass());
 
   public String getBaseUrl() {
@@ -50,6 +54,14 @@ public class NetworkSlicingEngineProperties {
 
   public void setDriver(String driver) {
     this.driver = driver;
+  }
+
+  public String getLibrary_type() {
+    return library_type;
+  }
+
+  public void setLibrary_type(String library_type) {
+    this.library_type = library_type;
   }
 
   @PostConstruct
