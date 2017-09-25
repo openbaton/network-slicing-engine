@@ -16,13 +16,12 @@
  *
  */
 
-package org.openbaton.nse.beans.openbaton;
+package org.openbaton.nse.beans.core;
 
 import org.openbaton.catalogue.mano.record.VirtualNetworkFunctionRecord;
-import org.openbaton.nse.beans.neutron.Neutron_AddQoSExecutor;
-import org.openbaton.nse.beans.neutron.QoSHandler;
-import org.openbaton.nse.core.ConnectivityManagerHandler;
-import org.openbaton.nse.properties.NetworkSlicingEngineProperties;
+import org.openbaton.nse.beans.adapters.NeutronQoSExecutor;
+import org.openbaton.nse.beans.adapters.NeutronQoSHandler;
+import org.openbaton.nse.properties.NseProperties;
 import org.openbaton.nse.properties.NfvoProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,57 +36,43 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.PostConstruct;
 
 /**
- * Created by maa on 02.12.15.
+ * Created by maa on 02.12.15. modified by lgr on 20.07.17
  */
 @Service
-public class QoSAllocator {
+public class CoreModule {
 
-  @Autowired private ConnectivityManagerHandler handler;
-  private QoSHandler neutron_handler = new QoSHandler();
+  //@Autowired private CmHandler handler;
+  private NeutronQoSHandler neutron_handler = new NeutronQoSHandler();
   private final ScheduledExecutorService qtScheduler = Executors.newScheduledThreadPool(1);
   private Logger logger;
 
   @Autowired private NfvoProperties nfvo_configuration;
-  @Autowired private NetworkSlicingEngineProperties nse_configuration;
+  @Autowired private NseProperties nse_configuration;
 
   @PostConstruct
   private void init() {
     this.logger = LoggerFactory.getLogger(this.getClass());
   }
 
+  /*
+   * To allow different types of NFVI besides OpenStack
+   * it will be necessary to split up the set of VNFRs
+   * here to then create thread for each type of VNFI
+   * instead of pushing everything to the thead
+   * responsible for OpenStack Neutron..
+   */
+
   public void addQos(Set<VirtualNetworkFunctionRecord> vnfrs, String nsrId) {
     logger.debug("Creating ADD Thread");
-
-    // Check which driver to use
-    if (nse_configuration.getDriver().equals("neutron")) {
-      Neutron_AddQoSExecutor aqe =
-          new Neutron_AddQoSExecutor(vnfrs, this.nfvo_configuration, neutron_handler);
-      qtScheduler.schedule(aqe, 100, TimeUnit.MILLISECONDS);
-
-    }
-    // Else , always assume we are using the cm_agent
-    else {
-      AddQoSExecutor aqe = new AddQoSExecutor(handler, vnfrs, nsrId);
-      qtScheduler.schedule(aqe, 100, TimeUnit.MILLISECONDS);
-    }
+    NeutronQoSExecutor aqe =
+        new NeutronQoSExecutor(vnfrs, this.nfvo_configuration, neutron_handler);
+    qtScheduler.schedule(aqe, 100, TimeUnit.MILLISECONDS);
     logger.debug("ADD Thread created and scheduled");
   }
 
   public void removeQos(Set<VirtualNetworkFunctionRecord> vnfrs, String nsrId) {
     logger.debug("Creating REMOVE Thread");
-
-    // Check which driver to use
-    if (nse_configuration.getDriver().equals("neutron")) {
-      //Neutron_RemoveQoSExecutor rqe = new Neutron_RemoveQoSExecutor(vnfrs,this.op_configuration);
-      //qtScheduler.schedule(rqe,10,TimeUnit.SECONDS);
-      logger.debug(
-          "Neutron does delete the ports and the applied QoS on machine deletion, will not create REMOVE Thread");
-    }
-    // Else , always assume we are using the cm_agent
-    else {
-      RemoveQoSExecutor rqe = new RemoveQoSExecutor(handler, vnfrs, nsrId);
-      qtScheduler.schedule(rqe, 10, TimeUnit.SECONDS);
-      logger.debug("REMOVE Thread created and scheduled");
-    }
+    logger.debug(
+        "Neutron does delete the ports and the applied QoS on machine deletion, will not create REMOVE Thread");
   }
 }

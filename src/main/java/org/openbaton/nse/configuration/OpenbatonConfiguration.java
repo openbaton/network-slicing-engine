@@ -32,10 +32,10 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Created by maa on 13.10.15.
+ * Created by maa on 13.10.15. modified by lgr on 20.07.17
  */
 @Configuration
-@ComponentScan("org.openbaton.nse")
+@ComponentScan("org.core.nse")
 public class OpenbatonConfiguration {
 
   @Autowired private NfvoProperties nfvoProperties;

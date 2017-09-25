@@ -22,7 +22,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.stereotype.Component;
 
 /**
- * Created by mpa on 13.05.16.
+ * Created by mpa on 13.05.16. modified by lgr on 20.07.17
  */
 @Component
 public class Starter {

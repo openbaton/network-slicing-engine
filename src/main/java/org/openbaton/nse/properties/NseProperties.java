@@ -26,11 +26,11 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;
 
 /**
- * Created by maa on 01.02.16.
+ * Created by maa on 01.02.16. modified by lgr on 20.07.17
  */
 @Service
 @ConfigurationProperties(prefix = "nse")
-public class NetworkSlicingEngineProperties {
+public class NseProperties {
 
   private String baseUrl;
 
