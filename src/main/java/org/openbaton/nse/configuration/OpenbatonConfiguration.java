@@ -31,11 +31,13 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 
+import java.io.FileNotFoundException;
+
 /**
  * Created by maa on 13.10.15. modified by lgr on 20.07.17
  */
 @Configuration
-@ComponentScan("org.core.nse")
+@ComponentScan("org.openbaton.nse")
 public class OpenbatonConfiguration {
 
   @Autowired private NfvoProperties nfvoProperties;
@@ -43,7 +45,8 @@ public class OpenbatonConfiguration {
   private static Logger logger = LoggerFactory.getLogger(OpenbatonConfiguration.class);
 
   @Bean
-  public NFVORequestor getNFVORequestor() throws SDKException, NotFoundException {
+  public NFVORequestor getNFVORequestor()
+      throws SDKException, NotFoundException, FileNotFoundException {
     if (!Utils.isNfvoStarted(nfvoProperties.getIp(), nfvoProperties.getPort())) {
       logger.error("NFVO is not available");
       System.exit(1);
@@ -75,6 +78,7 @@ public class OpenbatonConfiguration {
     } catch (SDKException | ClassNotFoundException e) {
       throw new SDKException(e);
     }
+
     return nfvoRequestor;
   }
 }

@@ -23,9 +23,12 @@ import org.openbaton.nse.beans.adapters.NeutronQoSExecutor;
 import org.openbaton.nse.beans.adapters.NeutronQoSHandler;
 import org.openbaton.nse.properties.NseProperties;
 import org.openbaton.nse.properties.NfvoProperties;
+import org.openbaton.sdk.NFVORequestor;
+import org.openbaton.sdk.api.exception.SDKException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.stereotype.Service;
 
 import java.util.Set;
@@ -63,16 +66,33 @@ public class CoreModule {
    */
 
   public void addQos(Set<VirtualNetworkFunctionRecord> vnfrs, String nsrId) {
-    logger.debug("Creating ADD Thread");
+    // First step is to check for the vim types
+
+    //    try {
+    //      NFVORequestor requestor =
+    //              new NFVORequestor(
+    //                      "nse",
+    //                      vnfr.getProjectId(),
+    //                      nfvo_configuration.getIp(),
+    //                      nfvo_configuration.getPort(),
+    //                      "1",
+    //                      false,
+    //                      nse_configuration.getKey());
+    //    } catch (SDKException e) {
+    //      logger.error("Problem instantiating NFVORequestor");
+    //    }
+
+    //logger.debug("Creating ADD Thread");
     NeutronQoSExecutor aqe =
-        new NeutronQoSExecutor(vnfrs, this.nfvo_configuration, neutron_handler);
-    qtScheduler.schedule(aqe, 100, TimeUnit.MILLISECONDS);
-    logger.debug("ADD Thread created and scheduled");
+        new NeutronQoSExecutor(
+            vnfrs, this.nfvo_configuration, this.nse_configuration, neutron_handler);
+    qtScheduler.schedule(aqe, 1, TimeUnit.SECONDS);
+    //qtScheduler.schedule(aqe, 100, TimeUnit.MILLISECONDS);
+    //logger.debug("ADD Thread created and scheduled");
   }
 
   public void removeQos(Set<VirtualNetworkFunctionRecord> vnfrs, String nsrId) {
-    logger.debug("Creating REMOVE Thread");
-    logger.debug(
-        "Neutron does delete the ports and the applied QoS on machine deletion, will not create REMOVE Thread");
+    //logger.debug("Creating REMOVE Thread");
+    //logger.debug("Neutron does delete the ports and the applied QoS on machine deletion, will not create REMOVE Thread");
   }
 }

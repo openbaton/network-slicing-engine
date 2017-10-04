@@ -141,14 +141,14 @@ For stopping you can use:
 **Note** Since the NSE subscribes to specific events towards the NFVO, you should take care about that the NFVO is already running when starting the NSE.
 
 # How to use Network Slicing Engine
-The currently only supported driver is neutron, which will use the native QoS capabilities of Openstack Mitaka. To use it simply set ```nse.driver=neutron``` in the configuration file. To set QoS policies in your NSD specify the following QoS parameter in the virtual_link of your vnfd configuration. 
+The currently only supported NFVI is OpenStack Neutron, which will use the native QoS capabilities of Openstack Mitaka. To set QoS policies in your NSD specify the following QoS parameter in the virtual_link of your vnfd configuration.
 
 ```
   "virtual_link":[
     {
       "name":"NAME_OF_THE_NETWORK",
       "qos":[
-        "minimum_bandwith:BRONZE"
+        "maximum_bandwidth:BRONZE"
       ]
     }
   ]

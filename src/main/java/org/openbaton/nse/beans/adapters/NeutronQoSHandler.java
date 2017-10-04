@@ -18,7 +18,7 @@
 
 package org.openbaton.nse.beans.adapters;
 
-import org.jclouds.openstack.keystone.v2_0.domain.Access;
+//import org.jclouds.openstack.keystone.v2_0.domain.Access;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -45,7 +45,7 @@ public class NeutronQoSHandler {
   };
 
   /**
-   * Builds up a simple http_connection to the adapters rest api
+   * Builds up a simple http_connection to the neutron rest api
    *
    * @return response.toString()
    *
@@ -53,7 +53,7 @@ public class NeutronQoSHandler {
    */
   public String neutron_http_connection(
       String t_url, String method, Object access, JSONObject payload) {
-    //logger.debug("Building up adapters http connection : " + t_url + " method : " + method);
+    //logger.debug("Building up neutron http connection : " + t_url + " method : " + method);
     HttpURLConnection connection = null;
     URL url = null;
     try {
@@ -69,13 +69,13 @@ public class NeutronQoSHandler {
         connection.setRequestProperty("Accept", "application/json");
         connection.setRequestProperty("Content-Type", "application/json");
       } else {
-        logger.error("No method defined for http request while contacting adapters");
+        logger.error("No method defined for http request while contacting neutron");
         return null;
       }
       connection.setDoOutput(true);
-      if (access instanceof Access) {
-        connection.setRequestProperty("X-Auth-Token", ((Access) access).getToken().getId());
-      } else if (access instanceof String) {
+      //if (access instanceof Access) {
+      //  connection.setRequestProperty("X-Auth-Token", ((Access) access).getToken().getId());}
+      if (access instanceof String) {
         connection.setRequestProperty("X-Auth-Token", ((String) access));
       } else {
         logger.error("Access object was neither String or Access");
@@ -100,20 +100,20 @@ public class NeutronQoSHandler {
       rd.close();
       connection.disconnect();
       //logger.debug("Response of final request is: " + response.toString());
-      //logger.debug("Got response from adapters : " + response.toString());
+      //logger.debug("Got response from neutron : " + response.toString());
       return response.toString();
     } catch (Exception e) {
-      logger.error("Problem contacting openstack-adapters");
-      logger.error(e.getMessage());
-      logger.error(e.toString());
-      e.printStackTrace();
+      logger.warn("        Problem contacting OpenStack Neutron");
+      logger.warn("        " + e.getMessage());
+      //logger.error(e.toString());
+      //e.printStackTrace();
       // If we have found a problem, we should probably end this thread
       return null;
     }
   }
 
   /**
-   * Parses a policy list response from adapters
+   * Parses a policy list response from neutron
    *
    * @return a Hash Map containing the policy names and their ids
    */
@@ -178,46 +178,46 @@ public class NeutronQoSHandler {
     return false;
   }
 
-  public String parseNeutronEndpoint(Access access) {
-    try {
-      String json = access.toString();
-      // Unfortunaltely we are not working on valid JSON here...
-      /*
-      // get rid of the beginning to have valid json...
-      json = json.substring(6);
-      logger.debug(json);
-      JSONObject ac = new JSONObject(json);
-      JSONArray services = ac.getJSONArray("serviceCatalog");
-      for (int i = 0; i < services.length(); i++) {
-        JSONObject s = services.getJSONObject(i);
-        logger.debug("Iterating over Service : " + s.getString("name"));
-        // If the name is adapters we want to get the public URL
-        if (s.getString("name").equals("adapters")) {
-          JSONArray endpoints = s.getJSONArray("endpoints");
-          // Well actually this should only be a 1 entry array here
-          for (int x = 0; x < endpoints.length(); x++) {
-            JSONObject e = endpoints.getJSONObject(x);
-            return e.getString("publicURL");
-          }
-        }
+  //public String parseNeutronEndpoint(Access access) {
+  //  try {
+  //    String json = access.toString();
+  // Unfortunaltely we are not working on valid JSON here...
+  /*
+  // get rid of the beginning to have valid json...
+  json = json.substring(6);
+  logger.debug(json);
+  JSONObject ac = new JSONObject(json);
+  JSONArray services = ac.getJSONArray("serviceCatalog");
+  for (int i = 0; i < services.length(); i++) {
+    JSONObject s = services.getJSONObject(i);
+    logger.debug("Iterating over Service : " + s.getString("name"));
+    // If the name is neutron we want to get the public URL
+    if (s.getString("name").equals("neutron")) {
+      JSONArray endpoints = s.getJSONArray("endpoints");
+      // Well actually this should only be a 1 entry array here
+      for (int x = 0; x < endpoints.length(); x++) {
+        JSONObject e = endpoints.getJSONObject(x);
+        return e.getString("publicURL");
       }
-      */
-      // Cut all from the beginning until we are at the serviceCatalog
-      json = json.substring(json.indexOf("serviceCatalog"));
-      // Now cut all until we find our adapters service
-      json = json.substring(json.indexOf("adapters"));
-      // Now advance to the publicURL
-      json = json.substring(json.indexOf("publicURL"));
-      // Next cut off the rest after the ","
-      json = json.substring(0, json.indexOf(","));
-      return json.substring(json.indexOf("=") + 1);
-    } catch (Exception e) {
-      logger.error(e.getMessage());
-      logger.error(e.toString());
     }
-    logger.error("Did not found adapters endpoint");
-    return null;
   }
+  */
+  // Cut all from the beginning until we are at the serviceCatalog
+  //      json = json.substring(json.indexOf("serviceCatalog"));
+  //      // Now cut all until we find our neutron service
+  //      json = json.substring(json.indexOf("neutron"));
+  //      // Now advance to the publicURL
+  //      json = json.substring(json.indexOf("publicURL"));
+  //      // Next cut off the rest after the ","
+  //      json = json.substring(0, json.indexOf(","));
+  //      return json.substring(json.indexOf("=") + 1);
+  //    } catch (Exception e) {
+  //      logger.error(e.getMessage());
+  //      logger.error(e.toString());
+  //    }
+  //    logger.error("Did not found neutron endpoint");
+  //    return null;
+  //  }
 
   public boolean checkPortQoSPolicy(String response, String id) {
     String port_qos_id = null;

@@ -29,7 +29,7 @@ import org.springframework.context.annotation.ComponentScan;
  * Created by mpa on 13.05.16. modified by lgr on 20.07.17
  */
 @SpringBootApplication
-@ComponentScan(basePackages = "org.core.nse")
+@ComponentScan(basePackages = "org.openbaton.nse")
 public class NetworkSlicingEngine {
 
   @Autowired private OpenbatonConfiguration openbatonConfiguration;

@@ -32,29 +32,31 @@ import javax.annotation.PostConstruct;
 @ConfigurationProperties(prefix = "nse")
 public class NseProperties {
 
-  private String baseUrl;
-
-  private String driver;
+  //  private String baseUrl;
+  //
+  //  private String driver;
 
   private String library_type;
 
+  private String key;
+
   private Logger logger = LoggerFactory.getLogger(this.getClass());
 
-  public String getBaseUrl() {
-    return baseUrl;
-  }
+  //  public String getBaseUrl() {
+  //    return baseUrl;
+  //  }
+  //
+  //  public void setBaseUrl(String baseUrl) {
+  //    this.baseUrl = baseUrl;
+  //  }
 
-  public void setBaseUrl(String baseUrl) {
-    this.baseUrl = baseUrl;
-  }
-
-  public String getDriver() {
-    return driver;
-  }
-
-  public void setDriver(String driver) {
-    this.driver = driver;
-  }
+  //  public String getDriver() {
+  //    return driver;
+  //  }
+  //
+  //  public void setDriver(String driver) {
+  //    this.driver = driver;
+  //  }
 
   public String getLibrary_type() {
     return library_type;
@@ -64,9 +66,60 @@ public class NseProperties {
     this.library_type = library_type;
   }
 
-  @PostConstruct
-  private void init() {
+  //  public Key getKey() {
+  //    return key;
+  //  }
+  //
+  //  public void setKey(Key key) {
+  //    this.key = key;
+  //  }
 
-    logger.debug("Agent baseurl is: " + baseUrl);
+  public String getKey() {
+    return key;
   }
+
+  public void setKey(String key) {
+    this.key = key;
+  }
+
+  //  @PostConstruct
+  //  private void init() {
+  //
+  //    logger.debug("Agent baseurl is: " + baseUrl);
+  //  }
+
+  //  public static class Key {
+  //    private File file;
+  //
+  //    public File getFile() {
+  //      return file;
+  //    }
+  //
+  //    public void setFile(File file) {
+  //      this.file = file;
+  //    }
+  //
+  //    @Override
+  //    public String toString() {
+  //      return "Key{" + "file=" + file + '}';
+  //    }
+  //  }
+  //
+  //  public static class File {
+  //    private String path;
+  //
+  //    public String getPath() {
+  //      return path;
+  //    }
+  //
+  //    public void setPath(String path) {
+  //      this.path = path;
+  //    }
+  //
+  //    @Override
+  //    public String toString() {
+  //      return "File{" + "path='" + path + '\'' + '}';
+  //    }
+  //  }
+
 }
