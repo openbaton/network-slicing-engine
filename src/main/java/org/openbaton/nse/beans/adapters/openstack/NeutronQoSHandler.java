@@ -16,7 +16,7 @@
  *
  */
 
-package org.openbaton.nse.beans.adapters;
+package org.openbaton.nse.beans.adapters.openstack;
 
 //import org.jclouds.openstack.keystone.v2_0.domain.Access;
 import org.json.JSONArray;
@@ -120,31 +120,31 @@ public class NeutronQoSHandler {
   public Map<String, String> parsePolicyMap(String response) {
     Map<String, String> tmp = new HashMap<String, String>();
     try {
-      logger.debug("Parsing existing QoS policies");
+      logger.debug("    Parsing existing QoS policies");
       // TODO : catch null objects
       JSONObject ans = new JSONObject(response);
       //logger.debug("Created JSON-Object : "+ans.toString());
       JSONArray qos_p = ans.getJSONArray("policies");
       //logger.debug("Created JSON-Array : "+qos_p.toString());
-      logger.debug("There are " + qos_p.length() + " QoS-policies available");
+      //logger.debug("    There are " + qos_p.length() + " QoS-policies available");
       for (int i = 0; i < qos_p.length(); i++) {
         JSONObject o = qos_p.getJSONObject(i);
         //logger.debug(o.toString());
         tmp.put(o.getString("name"), o.getString("id"));
-        logger.debug("[" + i + "] " + o.getString("name") + " ");
+        //logger.debug("        [" + i + "] " + o.getString("name") + " ");
         JSONArray rules = o.getJSONArray("rules");
         if (rules != null) {
           for (int x = 0; x < rules.length(); x++) {
             JSONObject r = rules.getJSONObject(x);
-            logger.debug(
-                "    rule "
-                    + x
-                    + " - "
-                    + r.getString("type")
-                    + " : max_kbps - "
-                    + r.getInt("max_kbps")
-                    + " ### max_burst_kbps - "
-                    + r.getInt("max_burst_kbps"));
+            //            logger.debug(
+            //                "            rule "
+            //                    + x
+            //                    + " - "
+            //                    + r.getString("type")
+            //                    + " : max_kbps - "
+            //                    + r.getInt("max_kbps")
+            //                    + " ### max_burst_kbps - "
+            //                    + r.getInt("max_burst_kbps"));
           }
         }
       }
@@ -157,7 +157,7 @@ public class NeutronQoSHandler {
 
   public boolean checkForBandwidthRule(String response, String max_kbps) {
     try {
-      logger.debug("Parsing policy");
+      logger.debug("    Parsing policy");
       int bw = Integer.parseInt(max_kbps);
       JSONObject policy = new JSONObject(response).getJSONObject("policy");
       // Check if the policy is shared
@@ -229,12 +229,12 @@ public class NeutronQoSHandler {
         port_qos_id = (String) o;
         if (port_qos_id.equals(id)) {
           // we do not need a update of the port
-          logger.debug("Port already got the correct QoS policy assigned");
+          logger.debug("    Port already got the correct QoS policy assigned");
           return true;
         }
       }
     } catch (ClassCastException e) {
-      logger.debug("Port does not have a QoS policy assigned");
+      logger.debug("    Port does not have a QoS policy assigned");
     }
     // We need a update of the port
     return false;
