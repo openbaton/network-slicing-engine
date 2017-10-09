@@ -64,29 +64,32 @@ public class NeutronQoSExecutor implements Runnable {
   private Logger logger;
   private Set<VirtualNetworkFunctionRecord> vnfrs;
   private NeutronQoSHandler neutron_handler;
-  private OSClient os;
   private VimInstance v;
   private String token;
   private Map<String, String> creds;
   private List<org.openstack4j.model.network.Port> portList;
+  private Map<String, String> computeNodeMap;
+  private Map<String, String> hostComputeNodeMap;
   private String delimiter_line;
 
   public NeutronQoSExecutor(
       Set<VirtualNetworkFunctionRecord> vnfrs,
       NeutronQoSHandler handler,
-      OSClient os,
       String token,
       VimInstance v,
       Map<String, String> creds,
-      List<org.openstack4j.model.network.Port> portList) {
+      List<org.openstack4j.model.network.Port> portList,
+      Map<String, String> computeNodeMap,
+      Map<String, String> hostComputeNodeMap) {
     this.vnfrs = vnfrs;
     this.logger = LoggerFactory.getLogger(this.getClass());
     this.neutron_handler = handler;
-    this.os = os;
     this.token = token;
     this.v = v;
     this.creds = creds;
     this.portList = portList;
+    this.computeNodeMap = computeNodeMap;
+    this.hostComputeNodeMap = hostComputeNodeMap;
   }
 
   private void init() {
@@ -108,7 +111,23 @@ public class NeutronQoSExecutor implements Runnable {
       logger.debug(heading);
       logger.debug(delimiter_line);
       for (DetailedQoSReference r : qoses) {
-        logger.debug("  " + r.getIp() + " -> " + r.getQuality());
+        try {
+          logger.debug(
+              "  "
+                  + r.getIp()
+                  + " -> "
+                  + r.getQuality()
+                  + " running on compute node "
+                  + hostComputeNodeMap.get(vnfr.getName())
+                  + " available at "
+                  + computeNodeMap.get(hostComputeNodeMap.get(vnfr.getName())));
+        } catch (Exception e) {
+          logger.warn("  Problem checking on compute node for " + r.getIp());
+          logger.debug("/////////////////////////////////////");
+          logger.debug(hostComputeNodeMap.toString());
+          logger.debug("/////////////////////////////////////");
+          logger.debug(computeNodeMap.toString());
+        }
       }
       logger.debug(delimiter_line);
       for (DetailedQoSReference r : qoses) {

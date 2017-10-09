@@ -32,6 +32,8 @@ import org.openbaton.sdk.api.rest.VimInstanceAgent;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.api.exceptions.AuthenticationException;
 import org.openstack4j.model.common.Identifier;
+import org.openstack4j.model.compute.Server;
+import org.openstack4j.model.compute.ext.Hypervisor;
 import org.openstack4j.model.network.Port;
 import org.openstack4j.openstack.OSFactory;
 import org.slf4j.Logger;
@@ -197,14 +199,13 @@ public class CoreModule {
     try {
       //logger.debug("listing all vim-instances");
       //logger.debug(requestor.getVimInstanceAgent().findAll().toString());
+      //v = requestor.getVimInstanceAgent().findById(vim_id);
       for (VimInstance vim : requestor.getVimInstanceAgent().findAll()) {
         if (vim.getId().equals(vim_id)) {
           // well we found the correct vim
           v = vim;
         }
       }
-      //v = requestor.getVimInstanceAgent().findById(vim_id);
-
     } catch (Exception e) {
       logger.error("Exception while creating credentials");
       logger.error(e.getMessage());
@@ -248,7 +249,7 @@ public class CoreModule {
             }
           } catch (Exception ignored) {
             logger.warn(
-                "Not found region '"
+                "    Not found region '"
                     + vimInstance.getLocation().getName()
                     + "'. Use default one...");
             return os;
@@ -270,7 +271,7 @@ public class CoreModule {
             ((OSClient.OSClientV2) os).identity().listTokenEndpoints();
           } catch (Exception e) {
             logger.warn(
-                "Not found region '"
+                "    Not found region '"
                     + vimInstance.getLocation().getName()
                     + "'. Use default one...");
             ((OSClient.OSClientV2) os).removeRegion();
@@ -387,6 +388,31 @@ public class CoreModule {
     return null;
   }
 
+  private Map<String, String> getComputeNodeMap(OSClient os) {
+    Map<String, String> computenode_ip_map = new HashMap<String, String>();
+    for (Hypervisor h : os.compute().hypervisors().list()) {
+      computenode_ip_map.put(h.getHypervisorHostname(), h.getHostIP());
+    }
+    return computenode_ip_map;
+  }
+
+  private Map<String, String> getVnfHostNameComputeNodeMap(
+      OSClient os, Set<VirtualNetworkFunctionRecord> vnfrs) {
+    Map<String, String> vnf_host_compute_map = new HashMap<String, String>();
+    for (VirtualNetworkFunctionRecord vnfr : vnfrs) {
+      for (VirtualDeploymentUnit vdu : vnfr.getVdu()) {
+        for (VNFCInstance vnfci : vdu.getVnfc_instance()) {
+          for (Server s : os.compute().servers().list()) {
+            if (vnfci.getHostname().equals(s.getName())) {
+              vnf_host_compute_map.put(vnfr.getName(), s.getHypervisorHostname());
+            }
+          }
+        }
+      }
+    }
+    return vnf_host_compute_map;
+  }
+
   private void startOpenStackNeutronQoSTask(
       String key,
       Map<String, Set<VirtualNetworkFunctionRecord>> vim_vnfrs_map,
@@ -397,7 +423,14 @@ public class CoreModule {
       List<org.openstack4j.model.network.Port> portList) {
     NeutronQoSExecutor aqe =
         new NeutronQoSExecutor(
-            vim_vnfrs_map.get(key), neutron_handler, os, token, v, creds, portList);
+            vim_vnfrs_map.get(key),
+            neutron_handler,
+            token,
+            v,
+            creds,
+            portList,
+            this.getComputeNodeMap(os),
+            this.getVnfHostNameComputeNodeMap(os, vim_vnfrs_map.get(key)));
     qtScheduler.schedule(aqe, 1, TimeUnit.SECONDS);
   }
 }
