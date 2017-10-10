@@ -98,93 +98,98 @@ public class NeutronQoSExecutor implements Runnable {
 
   @Override
   public void run() {
+    List<DetailedQoSReference> qoses = this.getDetailedQosesRefs(vnfrs);
+    String heading = "  # Will work on VIM with name : " + v.getName() + " and id : " + v.getId();
+    delimiter_line = "  ";
+    for (int n = 0; n < heading.length(); n++) {
+      delimiter_line = delimiter_line + "#";
+    }
+    heading += "  #";
+    logger.debug(delimiter_line);
+    logger.debug(heading);
+    logger.debug(delimiter_line);
     for (VirtualNetworkFunctionRecord vnfr : vnfrs) {
-      List<DetailedQoSReference> qoses = this.getDetailedQosesRefs(vnfrs);
-      //List<QoSReference> qoses = this.getQosesRefs(vnfrs);
-      String heading =
-          "# Will work on VIM with name : " + v.getName() + " and id : " + v.getId() + " #";
-      delimiter_line = "";
-      for (int n = 0; n < heading.length(); n++) {
-        delimiter_line = delimiter_line + "#";
-      }
-      logger.debug(delimiter_line);
-      logger.debug(heading);
-      logger.debug(delimiter_line);
       for (DetailedQoSReference r : qoses) {
-        try {
-          logger.debug(
-              "  "
-                  + r.getIp()
-                  + " -> "
-                  + r.getQuality()
-                  + " running on compute node "
-                  + hostComputeNodeMap.get(vnfr.getName())
-                  + " available at "
-                  + computeNodeMap.get(hostComputeNodeMap.get(vnfr.getName())));
-        } catch (Exception e) {
-          logger.warn("  Problem checking on compute node for " + r.getIp());
-          logger.debug("/////////////////////////////////////");
-          logger.debug(hostComputeNodeMap.toString());
-          logger.debug("/////////////////////////////////////");
-          logger.debug(computeNodeMap.toString());
-        }
-      }
-      logger.debug(delimiter_line);
-      for (DetailedQoSReference r : qoses) {
-        logger.debug("    Setting " + r.getIp() + " bandwidth quality to " + r.getQuality());
-        Map<String, String> qos_map = getNeutronQoSPolicies(neutron_handler, creds, token);
-        if (qos_map == null) {
-          // in this case the NFVI (OpenStack) does not seem to support the operation, probably wrong neutron version
-          logger.warn(
-              "    OpenStack Neutron does not seem to support QoS operations for VIM : "
-                  + v.getName()
-                  + " with id : "
-                  + v.getId());
-          continue;
-        }
-        logger.debug("    Iterating over OpenStack Neutron Ports");
-        //List<org.openstack4j.model.network.Port> portList = this.getNeutronPorts(os);
-        for (org.openstack4j.model.network.Port p : portList) {
-          // Take care here since we need to check if we have different qualities on different networks!
-          String ips = p.getFixedIps().toString();
-          //for (DetailedQoSReference ref : qoses) {
-          // Check for our ip addresses, we simply use a string check here so we do not need to parse the input
-          if (ips.contains(r.getIp())) {
+        if (vnfr.getName().equals(r.getVnfr_name())) {
+          try {
             logger.debug(
-                "    Port with the ip : "
+                "  "
+                    + r.getVnfr_name()
+                    + " -> "
                     + r.getIp()
-                    + " and id : "
-                    + p.getId()
-                    + " will get QoS policy : "
-                    + r.getQuality().name());
-            // Natively metering the bandwidth in bytes per second, openstack uses kilo bytes per second
-            String bandwidth =
-                String.valueOf(Integer.parseInt(r.getQuality().getMax_rate()) / 1024);
-            // if the quality is missing, we should CREATE IT
-            logger.debug(
-                "    Checking if QoS policy : " + r.getQuality().name() + " exists in OpenStack");
-            if (qos_map.get(r.getQuality().name()) == null) {
-              logger.debug("    Did not found QoS policy with name : " + r.getQuality().name());
-              logger.debug("    Will create QoS policy : " + r.getQuality().name());
-              // Creating the not existing QoS policy
-              String created_pol_id = this.createQoSPolicy(creds, neutron_handler, r, token);
-              // Since we now have the correct id of the policy , lets create the bandwidth rule
-              createBandwidthRule(creds, created_pol_id, neutron_handler, bandwidth, token);
-            } else {
-              // At least print a warning here if the policy bandwidth rule differs from the one we wanted to create,
-              // this means a user touched it already
-              logger.debug("    Found QoS policy with name : " + r.getQuality().name());
-              String qos_id = qos_map.get(r.getQuality().name());
-              checkBandwidthRule(bandwidth, qos_id, neutron_handler, creds, r, token);
+                    + " -> "
+                    + r.getQuality()
+                    + " -> "
+                    + hostComputeNodeMap.get(vnfr.getName())
+                    + " -> "
+                    + computeNodeMap.get(hostComputeNodeMap.get(vnfr.getName())));
+          } catch (Exception e) {
+            logger.warn("  Problem checking on compute node for " + r.getIp());
+            logger.debug("/////////////////////////////////////");
+            logger.debug(hostComputeNodeMap.toString());
+            logger.debug("/////////////////////////////////////");
+            logger.debug(computeNodeMap.toString());
+          }
+        }
+      }
+      logger.debug(delimiter_line);
+      for (DetailedQoSReference r : qoses) {
+        if (vnfr.getName().equals(r.getVnfr_name())) {
+          logger.debug("    Setting " + r.getIp() + " bandwidth quality to " + r.getQuality());
+          Map<String, String> qos_map = getNeutronQoSPolicies(neutron_handler, creds, token);
+          if (qos_map == null) {
+            // in this case the NFVI (OpenStack) does not seem to support the operation, probably wrong neutron version
+            logger.warn(
+                "    OpenStack Neutron does not seem to support QoS operations for VIM : "
+                    + v.getName()
+                    + " with id : "
+                    + v.getId());
+            continue;
+          }
+          logger.debug("    Iterating over OpenStack Neutron Ports");
+          //List<org.openstack4j.model.network.Port> portList = this.getNeutronPorts(os);
+          for (org.openstack4j.model.network.Port p : portList) {
+            // Take care here since we need to check if we have different qualities on different networks!
+            String ips = p.getFixedIps().toString();
+            //for (DetailedQoSReference ref : qoses) {
+            // Check for our ip addresses, we simply use a string check here so we do not need to parse the input
+            if (ips.contains(r.getIp())) {
+              logger.debug(
+                  "    Port with the ip : "
+                      + r.getIp()
+                      + " and id : "
+                      + p.getId()
+                      + " will get QoS policy : "
+                      + r.getQuality().name());
+              // Natively metering the bandwidth in bytes per second, openstack uses kilo bytes per second
+              String bandwidth =
+                  String.valueOf(Integer.parseInt(r.getQuality().getMax_rate()) / 1024);
+              // if the quality is missing, we should CREATE IT
+              logger.debug(
+                  "    Checking if QoS policy : " + r.getQuality().name() + " exists in OpenStack");
+              if (qos_map.get(r.getQuality().name()) == null) {
+                logger.debug("    Did not found QoS policy with name : " + r.getQuality().name());
+                logger.debug("    Will create QoS policy : " + r.getQuality().name());
+                // Creating the not existing QoS policy
+                String created_pol_id = this.createQoSPolicy(creds, neutron_handler, r, token);
+                // Since we now have the correct id of the policy , lets create the bandwidth rule
+                createBandwidthRule(creds, created_pol_id, neutron_handler, bandwidth, token);
+              } else {
+                // At least print a warning here if the policy bandwidth rule differs from the one we wanted to create,
+                // this means a user touched it already
+                logger.debug("    Found QoS policy with name : " + r.getQuality().name());
+                String qos_id = qos_map.get(r.getQuality().name());
+                checkBandwidthRule(bandwidth, qos_id, neutron_handler, creds, r, token);
+              }
+              // Check which QoS policies are available now and update the qos_map
+              qos_map = getNeutronQoSPolicies(neutron_handler, creds, token);
+              logger.debug("    Updating QoS policy list of OpenStack Neutron");
+              //logger.debug(qos_map.toString());
+              // At this point we can be sure the policy exists
+              logger.debug("    Associated QoS policy is " + qos_map.get(r.getQuality().name()));
+              // Check if the port already got the correct qos-policy assigned
+              checkAndFixAssignedPolicies(neutron_handler, p, creds, qos_map, r, token);
             }
-            // Check which QoS policies are available now and update the qos_map
-            qos_map = getNeutronQoSPolicies(neutron_handler, creds, token);
-            logger.debug("    Updating QoS policy list of OpenStack Neutron");
-            //logger.debug(qos_map.toString());
-            // At this point we can be sure the policy exists
-            logger.debug("    Associated QoS policy is " + qos_map.get(r.getQuality().name()));
-            // Check if the port already got the correct qos-policy assigned
-            checkAndFixAssignedPolicies(neutron_handler, p, creds, qos_map, r, token);
           }
         }
       }
@@ -429,6 +434,7 @@ public class NeutronQoSExecutor implements Runnable {
                       ref.setQuality(netQualities.get(net));
                       ref.setVim_id(vnfci.getVim_id());
                       ref.setIp(ip.getIp());
+                      ref.setVnfr_name(vnfr.getName());
                       //logger.debug("    Adding " + ref.toString());
                       res.add(ref);
                     }
@@ -438,10 +444,11 @@ public class NeutronQoSExecutor implements Runnable {
             }
           }
         }
-      } else {
-        logger.debug(
-            "There are no qualities defined for " + vnfr.getName() + " in " + qualities.toString());
       }
+      //      else {
+      //        logger.debug(
+      //            "  There are no bandwidth limitations defined for " + vnfr.getName() + " in " + qualities.toString());
+      //      }
     }
     return res;
   }
