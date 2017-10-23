@@ -100,7 +100,7 @@ public class NeutronQoSExecutor implements Runnable {
   public void run() {
     List<DetailedQoSReference> qoses = this.getDetailedQosesRefs(vnfrs);
     String heading = "  # Will work on VIM with name : " + v.getName() + " and id : " + v.getId();
-    delimiter_line = "  ";
+    delimiter_line = "  #";
     for (int n = 0; n < heading.length(); n++) {
       delimiter_line = delimiter_line + "#";
     }
@@ -113,7 +113,7 @@ public class NeutronQoSExecutor implements Runnable {
         if (vnfr.getName().equals(r.getVnfr_name())) {
           try {
             logger.debug(
-                "  "
+                "    #"
                     + r.getVnfr_name()
                     + " -> "
                     + r.getIp()
@@ -132,7 +132,7 @@ public class NeutronQoSExecutor implements Runnable {
           }
         }
       }
-      logger.debug(delimiter_line);
+      logger.debug("    " + delimiter_line);
       for (DetailedQoSReference r : qoses) {
         if (vnfr.getName().equals(r.getVnfr_name())) {
           logger.debug("    Setting " + r.getIp() + " bandwidth quality to " + r.getQuality());
@@ -323,7 +323,7 @@ public class NeutronQoSExecutor implements Runnable {
               + ref.getQuality().name()
               + " assigned");
     }
-    logger.debug(delimiter_line);
+    //logger.debug(delimiter_line);
   }
 
   // Simple method to check if a set of connection points contain configured bandwidth qualities

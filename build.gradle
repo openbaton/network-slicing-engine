@@ -79,6 +79,8 @@ dependencies {
 //    compile ('org.apache.jclouds.labs:openstack-neutron:1.9.2')
 
     compile group: 'org.pacesys', name: 'openstack4j', version: '3.0.3'
+
+    compile("org.springframework.boot:spring-boot-starter-web")
 }
 
 bootRepackage {

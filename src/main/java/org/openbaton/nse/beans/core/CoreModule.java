@@ -19,11 +19,14 @@
 package org.openbaton.nse.beans.core;
 
 import org.openbaton.catalogue.mano.descriptor.VirtualDeploymentUnit;
+import org.openbaton.catalogue.mano.record.NetworkServiceRecord;
 import org.openbaton.catalogue.mano.record.VNFCInstance;
 import org.openbaton.catalogue.mano.record.VirtualNetworkFunctionRecord;
 import org.openbaton.catalogue.nfvo.VimInstance;
+import org.openbaton.catalogue.security.Project;
 import org.openbaton.nse.beans.adapters.openstack.NeutronQoSExecutor;
 import org.openbaton.nse.beans.adapters.openstack.NeutronQoSHandler;
+import org.openbaton.nse.utils.OpenStackOverview;
 import org.openbaton.nse.properties.NseProperties;
 import org.openbaton.nse.properties.NfvoProperties;
 import org.openbaton.sdk.NFVORequestor;
@@ -40,7 +43,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
+import java.io.FileNotFoundException;
+import java.lang.reflect.Array;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -52,6 +60,7 @@ import javax.annotation.PostConstruct;
  * Created by maa on 02.12.15. modified by lgr on 20.07.17
  */
 @Service
+@RestController
 public class CoreModule {
 
   //@Autowired private CmHandler handler;
@@ -62,6 +71,8 @@ public class CoreModule {
   private NFVORequestor requestor;
   private final ScheduledExecutorService qtScheduler = Executors.newScheduledThreadPool(1);
   private NeutronQoSHandler neutron_handler = new NeutronQoSHandler();
+
+  private OpenStackOverview osOverview = new OpenStackOverview();
 
   @Autowired private NfvoProperties nfvo_configuration;
   @Autowired private NseProperties nse_configuration;
@@ -328,10 +339,10 @@ public class CoreModule {
   private String getAuthToken(OSClient os, VimInstance vimInstance) {
     String token = null;
     if (isV3API(vimInstance)) {
-      logger.debug("    Using OpenStack Nova API v3 to obtain x auth token");
+      //logger.debug("    Using OpenStack Nova API v3 to obtain x auth token");
       token = ((OSClient.OSClientV3) os).getToken().getId();
     } else {
-      logger.debug("    Using OpenStack Nova API v2 to obtain x auth token");
+      //logger.debug("    Using OpenStack Nova API v2 to obtain x auth token");
       token = ((OSClient.OSClientV2) os).getAccess().getToken().getId();
     }
     //logger.debug("Received token : " + token);
@@ -432,5 +443,167 @@ public class CoreModule {
             this.getComputeNodeMap(os),
             this.getVnfHostNameComputeNodeMap(os, vim_vnfrs_map.get(key)));
     qtScheduler.schedule(aqe, 1, TimeUnit.SECONDS);
+  }
+
+  private void updateOpenStackOverview() {
+    ArrayList<Map<String, Object>> project_nsr_map = null;
+    ArrayList<Map<String, Object>> complete_computeNodeMap = new ArrayList<>();
+    //ArrayList<Map<String, String>> complete_vnf_computeNodeMap = new ArrayList<>();
+
+    NFVORequestor nfvo_nsr_req = null;
+    NFVORequestor nfvo_default_req = null;
+    try {
+      nfvo_default_req =
+          new NFVORequestor(
+              nfvo_configuration.getUsername(),
+              nfvo_configuration.getPassword(),
+              "*",
+              false,
+              nfvo_configuration.getIp(),
+              nfvo_configuration.getPort(),
+              "1");
+      // Iterate over all projects and collect all NSRs
+      for (Project project : nfvo_default_req.getProjectAgent().findAll()) {
+        //logger.debug("Checking project : " + project.getName());
+        nfvo_nsr_req =
+            new NFVORequestor(
+                "nse",
+                project.getId(),
+                nfvo_configuration.getIp(),
+                nfvo_configuration.getPort(),
+                "1",
+                false,
+                nse_configuration.getKey());
+        if (nfvo_nsr_req != null) {
+          List<NetworkServiceRecord> nsr_list =
+              nfvo_nsr_req.getNetworkServiceRecordAgent().findAll();
+
+          if (project_nsr_map == null) {
+            //project_nsr_map = new HashMap<String, ArrayList<HashMap<String, String>>>();
+
+            project_nsr_map = new ArrayList<>();
+          }
+          for (NetworkServiceRecord nsr : nsr_list) {
+            ArrayList<HashMap<String, String>> tmp_nsr_list =
+                new ArrayList<HashMap<String, String>>();
+            //logger.debug("Checking NSR : " + nsr.getName());
+            boolean found_project = false;
+            for (int n = 0; n < project_nsr_map.size(); n++) {
+              Map<String, Object> tmp = project_nsr_map.get(n);
+              if (tmp.get("name").equals(project.getName())) {
+                found_project = true;
+              }
+            }
+            if (!found_project) {
+              HashMap<String, Object> tmp_project_entry = new HashMap<String, Object>();
+              HashMap<String, String> tmp_nsr_entry = new HashMap<String, String>();
+              tmp_nsr_entry.put("name", nsr.getName());
+              tmp_nsr_entry.put("id", nsr.getId());
+              tmp_nsr_list.add(tmp_nsr_entry);
+              tmp_project_entry.put("nsrs", tmp_nsr_list);
+              tmp_project_entry.put("name", project.getName());
+              project_nsr_map.add(tmp_project_entry);
+            } else {
+              //logger.debug("Already found project " + project.getName() + " in the hashmap");
+            }
+            for (VirtualNetworkFunctionRecord vnfr : nsr.getVnfr()) {
+              //logger.debug("Checking VNFR : " + vnfr.getName());
+              for (VirtualDeploymentUnit vdu : vnfr.getVdu()) {
+                for (VNFCInstance vnfci : vdu.getVnfc_instance()) {
+                  VimInstance tmp_vim = this.getVimInstance(nfvo_nsr_req, vnfci.getVim_id());
+                  OSClient tmp_os = getOSClient(tmp_vim);
+                  Map<String, String> tmp_computeNodeMap = getComputeNodeMap(tmp_os);
+                  if (tmp_computeNodeMap != null) {
+                    // We collect all involved compute nodes
+                    for (String key : tmp_computeNodeMap.keySet()) {
+                      boolean node_found = false;
+                      for (int i = 0; i < complete_computeNodeMap.size(); i++) {
+                        if (complete_computeNodeMap.get(i).get("name").equals(key)) {
+                          node_found = true;
+                        }
+                      }
+                      if (!node_found) {
+                        HashMap<String, Object> tmp_node_entry = new HashMap<String, Object>();
+                        //tmp_node_entry.put(key, tmp_computeNodeMap.get(key));
+                        tmp_node_entry.put("vnfs", new ArrayList<HashMap<String, String>>());
+                        tmp_node_entry.put("node_ip", tmp_computeNodeMap.get(key));
+                        tmp_node_entry.put("name", key);
+
+                        complete_computeNodeMap.add(tmp_node_entry);
+                      }
+                    }
+                  }
+
+                  Map<String, String> tmp_vnf_computeNodeMap =
+                      getVnfHostNameComputeNodeMap(tmp_os, nsr.getVnfr());
+                  //logger.debug(tmp_vnf_computeNodeMap.toString());
+                  if (tmp_vnf_computeNodeMap != null) {
+                    boolean vnf_node_found = false;
+                    // {bt=node05ob100.maas, chess=node06ob100.maas, mme=node03ob100.maas, sgwupgwugw=node07ob100.maas, bind9=node02ob100.maas}
+                    for (String key : tmp_vnf_computeNodeMap.keySet()) {
+                      if (key.equals(vnfr.getName())) {
+                        String current_compute_node = tmp_vnf_computeNodeMap.get(key);
+                        //logger.debug("Checking " + key + " of " + nsr.getName());
+                        for (int i = 0; i < complete_computeNodeMap.size(); i++) {
+                          if (complete_computeNodeMap
+                              .get(i)
+                              .get("name")
+                              .equals(current_compute_node)) {
+                            //logger.debug("found compute node " + current_compute_node);
+                            ArrayList<HashMap<String, String>> already_contained_vnfs =
+                                (ArrayList<HashMap<String, String>>)
+                                    complete_computeNodeMap.get(i).get("vnfs");
+
+                            boolean found_vnf = false;
+                            for (int y = 0; y < already_contained_vnfs.size(); y++) {
+                              HashMap<String, String> tmp_vnf = already_contained_vnfs.get(y);
+                              if (tmp_vnf.get("hostname").equals(vnfci.getHostname())) {
+                                found_vnf = true;
+                              }
+                            }
+                            if (found_vnf) {
+                              //logger.debug(
+                              //    "Entry "
+                              //        + vnfci.getHostname()
+                              //        + " already added to "
+                              //        + current_compute_node);
+                            } else {
+                              //logger.debug(
+                              //    "adding " + vnfci.getHostname() + " to " + current_compute_node);
+                              HashMap<String, String> tmp_vnf_info = new HashMap<String, String>();
+                              tmp_vnf_info.put("hostname", vnfci.getHostname());
+                              tmp_vnf_info.put("nsr_name", nsr.getName());
+                              tmp_vnf_info.put("nsr_id", nsr.getId());
+                              tmp_vnf_info.put("vim_id", tmp_vim.getId());
+                              tmp_vnf_info.put("vim_name", tmp_vim.getName());
+                              tmp_vnf_info.put("project_id", nsr.getProjectId());
+                              already_contained_vnfs.add(tmp_vnf_info);
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        this.osOverview.setNodes(complete_computeNodeMap);
+        this.osOverview.setProjects(project_nsr_map);
+      }
+
+    } catch (SDKException e) {
+      logger.error("Problem instantiating NFVORequestor with project id null");
+    } catch (FileNotFoundException e) {
+      e.printStackTrace();
+    }
+  }
+
+  @RequestMapping("/overview")
+  public OpenStackOverview getOverview(
+      @RequestParam(value = "name", defaultValue = "World") String name) {
+    updateOpenStackOverview();
+    return this.osOverview;
   }
 }
