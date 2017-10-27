@@ -79,7 +79,7 @@ This chapter describes what needs to be done before starting the Network Slicing
 The configuration file must be copied to `/etc/openbaton/openbaton-nse.properties` by executing the following command from inside the repository folder:
 
 ```bash
-cp src/main/resources/openbaton-nse.properties /etc/openbaton/openbaton-nse.properties
+cp src/main/resources/application.properties /etc/openbaton/openbaton-nse.properties
 ```
 
 If done, check out the following chapter in order to understand the configuration parameters.

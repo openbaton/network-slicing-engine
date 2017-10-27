@@ -5,7 +5,7 @@
 #general configuration
 _PROJECT_NAME="network-slicing-engine"
 
-_DEFAULT_PROPERTIES_FILE="${_PROJECT_BASE}/src/main/resources/openbaton-nse.properties"
+_DEFAULT_PROPERTIES_FILE="${_PROJECT_BASE}/src/main/resources/application.properties"
 
 _BASE="/opt"
 _PROJECT_ROOT_BASE="${_BASE}/openbaton"
