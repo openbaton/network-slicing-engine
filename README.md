@@ -18,8 +18,8 @@ Before starting this component you have to do the configuration of the NSE that 
 # Technical Requirements
 This section covers the requirements that must be met by the environment in order to satisfy the demands of the NSE:
 
-* Installed and configured Open Baton NFVO/gVNFM (>=2.1.3)
-* Installed and configured Openstack (>=Mitaka)
+* Installed and configured Open Baton NFVO/gVNFM (>=5.0.0)
+* OpenStack installation including Neutron QoS APIs (https://docs.openstack.org/mitaka/networking-guide/config-qos.html)
 
 # How to install Network Slicing Engine
 Different options are available for the installation of the NSE. Either you use the fully automated bootstrap where all configurations are done automatically where you can choose between the installation based on the debian package or on the source code which is suggested for development. Apart from the bootstrap you can also use the debian or the source code installation where you need to configure the NSE manually. 
