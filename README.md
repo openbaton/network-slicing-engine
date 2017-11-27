@@ -76,10 +76,10 @@ Once this is done, go inside the cloned folder and make use of the provided scri
 This chapter describes what needs to be done before starting the Network Slicing Engine. This includes the configuration file and properties, and also how to define QoS requirements in the descriptor.
 
 ## Configuration file
-The configuration file must be copied to `etc/openbaton/nse.properties` by executing the following command from inside the repository folder:
+The configuration file must be copied to `/etc/openbaton/openbaton-nse.properties` by executing the following command from inside the repository folder:
 
 ```bash
-cp etc/nse.properties /etc/openbaton/nse.properties
+cp src/main/resources/application.properties /etc/openbaton/openbaton-nse.properties
 ```
 
 If done, check out the following chapter in order to understand the configuration parameters.
