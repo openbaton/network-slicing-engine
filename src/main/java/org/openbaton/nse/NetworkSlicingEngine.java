@@ -23,11 +23,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.orm.jpa.EntityScan;
 import org.springframework.context.annotation.ComponentScan;
 
 /**
- * Created by mpa on 13.05.16.
+ * Created by mpa on 13.05.16. modified by lgr on 20.07.17
  */
 @SpringBootApplication
 @ComponentScan(basePackages = "org.openbaton.nse")

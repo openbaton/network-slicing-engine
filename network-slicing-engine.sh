@@ -7,7 +7,7 @@ _version=${version}
 _project_base="/opt/openbaton/openbaton-nse"
 _process_name="network-slicing-engine"
 _screen_name="openbaton"
-_config_file="/etc/openbaton/nse.properties"
+_config_file="/etc/openbaton/openbaton-nse.properties"
 
 function checkBinary {
   if command -v $1 >/dev/null 2>&1; then
@@ -48,13 +48,13 @@ function init {
     if [ ! -f $_config_file ]; then
         if [ $EUID != 0 ]; then
             echo "creating the directory and copying the file"
-            sudo -E sh -c "mkdir /etc/openbaton; cp ${_project_base}/etc/nse.properties ${_config_file}"
+            sudo -E sh -c "mkdir /etc/openbaton; cp ${_project_base}/src/main/resources/application.properties ${_config_file}"
             #echo "copying the file, insert the administrator password" | sudo -kS cp ${_nubomedia_paas_base}/src/main/resources/paas.properties ${_nubomedia_config_file}
         else
             echo "creating the directory"
             mkdir /etc/openbaton
             echo "copying the file"
-            cp ${_project_base}/etc/nse.properties ${_config_file}
+            cp ${_project_base}/src/main/resources/application.properties ${_config_file}
         fi
     else
         echo "Properties file already exist"

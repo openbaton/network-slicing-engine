@@ -23,6 +23,17 @@ package org.openbaton.nse.utils;
  */
 public class DetailedQoSReference extends QoSReference {
 
+  private String vim_id;
+  private String vnfr_name;
+
+  public String getVnfr_name() {
+    return vnfr_name;
+  }
+
+  public void setVnfr_name(String vnfr_name) {
+    this.vnfr_name = vnfr_name;
+  }
+
   public String getVim_id() {
     return vim_id;
   }
@@ -31,11 +42,10 @@ public class DetailedQoSReference extends QoSReference {
     this.vim_id = vim_id;
   }
 
-  private String vim_id;
-
-  public DetailedQoSReference(String ip, Quality quality, String vim_id) {
+  public DetailedQoSReference(String ip, Quality quality, String vim_id, String vnfr_name) {
     super();
     this.vim_id = vim_id;
+    this.vnfr_name = vnfr_name;
   }
 
   public DetailedQoSReference() {}
@@ -50,6 +60,8 @@ public class DetailedQoSReference extends QoSReference {
         + super.getQuality()
         + ", vim_id="
         + this.vim_id
+        + ", vnfr_name="
+        + this.vnfr_name
         + '}';
   }
 }

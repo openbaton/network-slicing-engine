@@ -22,7 +22,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Service;
 
 /**
- * Created by maa on 22.01.16.
+ * Created by maa on 22.01.16. modified by lgr on 20.07.17
  */
 @Service
 @ConfigurationProperties(prefix = "rabbitmq")

@@ -33,6 +33,7 @@ plugins {
 group 'org.openbaton'
 
 repositories {
+    mavenLocal()
     mavenCentral()
     maven {
         url "https://oss.sonatype.org/content/repositories/snapshots/"
@@ -50,7 +51,7 @@ apply from: 'gradle/gradle/git.helpers.gradle'
 apply from: 'gradle/gradle/command.line.helper.gradle'
 
 project.ext {
-    openbatonVersion = "3.2.0"
+    openbatonVersion = "5.0.0"
     /**
      * Application Related Version
      */
@@ -72,10 +73,14 @@ dependencies {
     compile 'org.openbaton:sdk:' + openbatonVersion
     compile 'org.openbaton:exception:' + openbatonVersion
 
-    compile ('org.apache.jclouds.driver:jclouds-slf4j:1.9.2')
-    compile ('org.apache.jclouds.driver:jclouds-sshj:1.9.2')
-    compile ('org.apache.jclouds.api:openstack-nova:1.9.2')
-    compile ('org.apache.jclouds.labs:openstack-neutron:1.9.2')
+//    compile ('org.apache.jclouds.driver:jclouds-slf4j:1.9.2')
+//    compile ('org.apache.jclouds.driver:jclouds-sshj:1.9.2')
+//    compile ('org.apache.jclouds.api:openstack-nova:1.9.2')
+//    compile ('org.apache.jclouds.labs:openstack-neutron:1.9.2')
+
+    compile group: 'org.pacesys', name: 'openstack4j', version: '3.0.3'
+
+    compile("org.springframework.boot:spring-boot-starter-web")
 }
 
 bootRepackage {

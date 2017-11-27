@@ -22,9 +22,16 @@ package org.openbaton.nse.utils;
  * Created by maa on 11.11.15.
  */
 public enum Quality {
-  GOLD("100000000", "50000000"),
-  SILVER("50000000", "25000000"),
-  BRONZE("250000", "125000");
+  // 1126 mb/s burst - 1024 mb/s
+  PLATINUM("1181116006", "1073741824"),
+  // 110 mb/s burst - 100 mb/s
+  GOLD("115343360", "104857600"),
+  // 11 mb/s burst - 10 mb/s
+  SILVER("11534336", "10485760"),
+  // 1.1 mb/s burst - 1 mb/s
+  BRONZE("1153433", "1048576"),
+  // 0.2 mb/s burst - 0.1 mb/s
+  COAL("209715", "104857");
 
   private String max_rate;
   private String min_rate;

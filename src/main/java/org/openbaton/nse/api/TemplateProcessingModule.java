@@ -29,8 +29,8 @@ import org.openbaton.catalogue.mano.record.VirtualNetworkFunctionRecord;
 import org.openbaton.catalogue.nfvo.Action;
 import org.openbaton.catalogue.nfvo.EndpointType;
 import org.openbaton.catalogue.nfvo.EventEndpoint;
-import org.openbaton.nse.beans.openbaton.QoSAllocator;
-import org.openbaton.nse.properties.NetworkSlicingEngineProperties;
+import org.openbaton.nse.beans.core.CoreModule;
+import org.openbaton.nse.properties.NseProperties;
 import org.openbaton.nse.properties.RabbitMQProperties;
 import org.openbaton.sdk.NFVORequestor;
 import org.openbaton.sdk.api.exception.SDKException;
@@ -51,6 +51,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -61,23 +62,23 @@ import java.util.List;
 import javax.annotation.PreDestroy;
 
 /**
- * Created by maa on 11.11.15.
+ * Created by maa on 11.11.15. modified by lgr on 20.07.17
  */
 @Service
-public class EventReceiver implements CommandLineRunner {
+public class TemplateProcessingModule implements CommandLineRunner {
 
   @Autowired private NFVORequestor requestor;
   @Autowired private RabbitMQProperties rabbitMQProperties;
-  @Autowired private QoSAllocator creator;
+  @Autowired private CoreModule core;
   @Autowired private Gson mapper;
-  @Autowired private NetworkSlicingEngineProperties nse_configuration;
+  @Autowired private NseProperties nse_configuration;
 
   private Logger logger = LoggerFactory.getLogger(this.getClass());
   private List<String> eventIds;
 
-  public static final String queueName_eventInstantiateFinish = "openbaton.nse.nsr.create";
-  public static final String queueName_eventError = "openbaton.nse.nsr.error";
-  public static final String queueName_eventScale = "openbaton.nse.nsr.scale";
+  public static final String queueName_eventInstantiateFinish = "core.nse.nsr.create";
+  public static final String queueName_eventError = "core.nse.nsr.error";
+  public static final String queueName_eventScale = "core.nse.nsr.scale";
 
   private void init() throws SDKException, IOException {
 
@@ -110,12 +111,11 @@ public class EventReceiver implements CommandLineRunner {
   }
 
   public void receiveConfiguration(String message) {
-    logger.debug("received new event " + message);
+    //logger.debug("Received event " + message);
     Action action;
     NetworkServiceRecord nsr;
-
     try {
-      logger.debug("Trying to deserialize it");
+      logger.debug("Deserializing..");
       JsonParser jsonParser = new JsonParser();
       JsonObject json = jsonParser.parse(message).getAsJsonObject();
       action = mapper.fromJson(json.get("action"), Action.class);
@@ -126,53 +126,34 @@ public class EventReceiver implements CommandLineRunner {
       else logger.warn("Error in payload, expected NSR " + e.getMessage());
       return;
     }
-
     logger.info(
         "[OPENBATON-EVENT-SUBSCRIPTION] received new NSR "
             + nsr.getId()
-            + "for slice allocation at time "
+            + " for processing at time "
             + new Date().getTime());
-    logger.debug("ACTION: " + action + " PAYLOAD: " + nsr.toString());
-
-    // So here we need to distinguish for the neutron-driver
-    // since it only needs to be executed once...
-    if (nse_configuration.getDriver().equals("neutron")) {
-      // The check if the nsr contains QoS is done afterwards...
-      creator.addQos(nsr.getVnfr(), nsr.getId());
-      return;
-    }
+    //logger.debug("ACTION: " + action + " PAYLOAD: " + nsr.toString());
     for (VirtualNetworkFunctionRecord vnfr : nsr.getVnfr()) {
-      logger.debug("VNFR: " + vnfr.toString());
       for (InternalVirtualLink vlr : vnfr.getVirtual_link()) {
-        logger.debug("VLR: " + vlr.toString());
         if (!vlr.getQos().isEmpty()) {
           for (String qosAttr : vlr.getQos()) {
-            logger.debug("QoS Attribute: " + qosAttr);
-            if (qosAttr.contains("minimum_bandwith")) {
-              logger.info(
-                  "[OPENBATON-EVENT-SUBSCRIPTION] sending the NSR "
-                      + nsr.getId()
-                      + "for slice allocation to nsr handler at time "
-                      + new Date().getTime());
-              creator.addQos(nsr.getVnfr(), nsr.getId());
+            //logger.debug("    found : " + qosAttr);
+            if (qosAttr.contains("maximum_bandwidth")) {
+              //logger.debug(nsr.getVnfr().toString());
+              core.addQos(nsr.getVnfr(), nsr.getId());
+              return;
             }
           }
         }
       }
     }
-    logger.info(
-        "[OPENBATON-EVENT-SUBSCRIPTION] Ended message callback function at "
-            + new Date().getTime());
   }
 
   public void deleteConfiguration(String message) {
-
-    logger.debug("received new event " + message);
+    //logger.debug("Received new event " + message);
     Action action;
     NetworkServiceRecord nsr;
-
     try {
-      logger.debug("Trying to deserialize it");
+      logger.debug("Deserializing..");
       JsonParser jsonParser = new JsonParser();
       JsonObject json = jsonParser.parse(message).getAsJsonObject();
       action = mapper.fromJson(json.get("action"), Action.class);
@@ -183,46 +164,22 @@ public class EventReceiver implements CommandLineRunner {
       else logger.warn("Error in payload, expected NSR " + e.getMessage());
       return;
     }
-
     logger.info(
         "[OPENBATON-EVENT-SUBSCRIPTION] received new NSR "
             + nsr.getId()
-            + " for slice removal at time "
+            + " for removal at time "
             + new Date().getTime());
-    logger.debug("ACTION: " + action + " PAYLOAD " + nsr.toString());
-
+    //logger.debug("ACTION: " + action + " PAYLOAD " + nsr.toString());
     // Neutron handles removing ports with the allocated QoS itself
-    if (nse_configuration.getDriver().equals("neutron")) {
-      return;
-    }
-    for (VirtualNetworkFunctionRecord vnfr : nsr.getVnfr()) {
-      logger.debug("VNFR: " + vnfr.toString());
-      for (InternalVirtualLink vlr : vnfr.getVirtual_link()) {
-        logger.debug("VLR: " + vlr.toString());
-        if (!vlr.getQos().isEmpty()) {
-          for (String qosAttr : vlr.getQos()) {
-            if (qosAttr.contains("minimum_bandwith")) {
-              logger.info(
-                  "[OPENBATON-EVENT-SUBSCRIPTION] sending the NSR "
-                      + nsr.getId()
-                      + "for slice removal to nsr handler at time "
-                      + new Date().getTime());
-              creator.removeQos(nsr.getVnfr(), nsr.getId());
-            }
-          }
-        }
-      }
-    }
+
   }
 
   public void scaleConfiguration(String message) {
-
-    logger.debug("received new event " + message);
+    //logger.debug("received new event " + message);
     Action action;
     VirtualNetworkFunctionRecord vnfr;
-
     try {
-      logger.debug("Trying to deserialize it");
+      logger.debug("Deserializing..");
       JsonParser jsonParser = new JsonParser();
       JsonObject json = jsonParser.parse(message).getAsJsonObject();
       action = mapper.fromJson(json.get("action"), Action.class);
@@ -233,25 +190,17 @@ public class EventReceiver implements CommandLineRunner {
       else logger.warn("Error in payload, expected NSR " + e.getMessage());
       return;
     }
-
     logger.info(
         "[OPENBATON-EVENT-SUBSCRIPTION] received new VNFR "
             + vnfr.getId()
-            + " for scaled slice at time "
+            + " for processing scaled VNFR at time "
             + new Date().getTime());
-    logger.debug("ACTION: " + action + " PAYLOAD " + vnfr.toString());
-
+    //logger.debug("ACTION: " + action + " PAYLOAD " + vnfr.toString());
     for (InternalVirtualLink vlr : vnfr.getVirtual_link()) {
-      logger.debug("VLR: " + vlr.toString());
       if (!vlr.getQos().isEmpty()) {
         for (String qosAttr : vlr.getQos()) {
-          if (qosAttr.contains("minimum_bandwith")) {
-            logger.info(
-                "[OPENBATON-EVENT-SUBSCRIPTION] sending the VNFR "
-                    + vnfr.getId()
-                    + "for slice scale to nsr handler at time "
-                    + new Date().getTime());
-            creator.addQos(
+          if (qosAttr.contains("maximum_bandwidth")) {
+            core.addQos(
                 new HashSet<VirtualNetworkFunctionRecord>(Arrays.asList(vnfr)),
                 vnfr.getParent_ns_id());
           }
@@ -261,7 +210,7 @@ public class EventReceiver implements CommandLineRunner {
   }
 
   @PreDestroy
-  private void dispose() throws SDKException {
+  private void dispose() throws SDKException, FileNotFoundException {
     for (String id : this.eventIds) {
       requestor.getEventAgent().delete(id);
     }
@@ -269,7 +218,7 @@ public class EventReceiver implements CommandLineRunner {
 
   @Bean
   public ConnectionFactory getConnectionFactory(Environment env) {
-    logger.debug("Created ConnectionFactory");
+    //logger.debug("Created ConnectionFactory");
     CachingConnectionFactory factory = new CachingConnectionFactory(rabbitMQProperties.getHost());
     factory.setPassword(rabbitMQProperties.getPassword());
     factory.setUsername(rabbitMQProperties.getUsername());
@@ -278,46 +227,46 @@ public class EventReceiver implements CommandLineRunner {
 
   @Bean
   public TopicExchange getTopic() {
-    logger.debug("Created Topic Exchange");
-    return new TopicExchange("openbaton-exchange");
+    //logger.debug("Created Topic Exchange");
+    return new TopicExchange("core-exchange");
   }
 
   @Bean
   public Queue getCreationQueue() {
-    logger.debug("Created Queue for NSR Create event");
+    //logger.debug("Created Queue for NSR Create event");
     return new Queue(queueName_eventInstantiateFinish, false, false, true);
   }
 
   @Bean
   public Queue getErrorQueue() {
-    logger.debug("Created Queue for NSR error event");
+    //logger.debug("Created Queue for NSR error event");
     return new Queue(queueName_eventError, false, false, true);
   }
 
   @Bean
   public Queue getScaleQueue() {
-    logger.debug("Created Queue for NSR scale event");
+    //logger.debug("Created Queue for NSR scale event");
     return new Queue(queueName_eventScale, false, false, true);
   }
 
   @Bean
   public Binding setCreationBinding(
       @Qualifier("getCreationQueue") Queue queue, TopicExchange topicExchange) {
-    logger.debug("Created Binding for NSR Creation event");
+    logger.debug("Binding to NSR Creation event");
     return BindingBuilder.bind(queue).to(topicExchange).with("ns-creation");
   }
 
   @Bean
   public Binding setErrorBinding(
       @Qualifier("getErrorQueue") Queue queue, TopicExchange topicExchange) {
-    logger.debug("Created Binding for NSR error event");
+    logger.debug("Binding to NSR error event");
     return BindingBuilder.bind(queue).to(topicExchange).with("ns-error");
   }
 
   @Bean
   public Binding setScaleBinding(
       @Qualifier("getScaleQueue") Queue queue, TopicExchange topicExchange) {
-    logger.debug("Created Binding for NSR scale event");
+    logger.debug("Binding to NSR scale event");
     return BindingBuilder.bind(queue).to(topicExchange).with("ns-scale");
   }
 
@@ -341,7 +290,7 @@ public class EventReceiver implements CommandLineRunner {
       ConnectionFactory connectionFactory,
       @Qualifier("getCreationQueue") Queue queue,
       @Qualifier("setCreationMessageListenerAdapter") MessageListenerAdapter adapter) {
-    logger.debug("Created MessageContainer for NSR Creation event");
+    //logger.debug("Created MessageContainer for NSR Creation event");
     SimpleMessageListenerContainer res = new SimpleMessageListenerContainer();
     res.setConnectionFactory(connectionFactory);
     res.setQueues(queue);
@@ -354,7 +303,7 @@ public class EventReceiver implements CommandLineRunner {
       ConnectionFactory connectionFactory,
       @Qualifier("getErrorQueue") Queue queue,
       @Qualifier("setErrorMessageListenerAdapter") MessageListenerAdapter adapter) {
-    logger.debug("Created MessageContainer for NSR error event");
+    //logger.debug("Created MessageContainer for NSR error event");
     SimpleMessageListenerContainer res = new SimpleMessageListenerContainer();
     res.setConnectionFactory(connectionFactory);
     res.setQueues(queue);
@@ -367,7 +316,7 @@ public class EventReceiver implements CommandLineRunner {
       ConnectionFactory connectionFactory,
       @Qualifier("getScaleQueue") Queue queue,
       @Qualifier("setScaleMessageListenerAdapter") MessageListenerAdapter adapter) {
-    logger.debug("Created MessageContainer for NSR scale event");
+    //logger.debug("Created MessageContainer for NSR scale event");
     SimpleMessageListenerContainer res = new SimpleMessageListenerContainer();
     res.setConnectionFactory(connectionFactory);
     res.setQueues(queue);

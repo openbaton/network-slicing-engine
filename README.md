@@ -76,10 +76,10 @@ Once this is done, go inside the cloned folder and make use of the provided scri
 This chapter describes what needs to be done before starting the Network Slicing Engine. This includes the configuration file and properties, and also how to define QoS requirements in the descriptor.
 
 ## Configuration file
-The configuration file must be copied to `etc/openbaton/nse.properties` by executing the following command from inside the repository folder:
+The configuration file must be copied to `/etc/openbaton/openbaton-nse.properties` by executing the following command from inside the repository folder:
 
 ```bash
-cp etc/nse.properties /etc/openbaton/nse.properties
+cp src/main/resources/application.properties /etc/openbaton/openbaton-nse.properties
 ```
 
 If done, check out the following chapter in order to understand the configuration parameters.
@@ -100,6 +100,7 @@ This chapter describes the parameters that must be considered for configuring th
 | nfvo.username                 | username for authorizing towards NFVO |
 | nfvo.password                 | password for authorizing towards NFVO |
 | nfvo.project.name             | project used for registering for the events|
+| nse.service.key               | Service Key obtained when registering the `network-slicing-engine` service via the NFVO|
 
 # Starting the Network Slicing Engine
 
@@ -141,14 +142,14 @@ For stopping you can use:
 **Note** Since the NSE subscribes to specific events towards the NFVO, you should take care about that the NFVO is already running when starting the NSE.
 
 # How to use Network Slicing Engine
-The currently only supported driver is neutron, which will use the native QoS capabilities of Openstack Mitaka. To use it simply set ```nse.driver=neutron``` in the configuration file. To set QoS policies in your NSD specify the following QoS parameter in the virtual_link of your vnfd configuration. 
+The currently only supported NFVI is OpenStack Neutron, which will use the native QoS capabilities of Openstack Mitaka. To set QoS policies in your NSD specify the following QoS parameter in the virtual_link of your vnfd configuration.
 
 ```
   "virtual_link":[
     {
       "name":"NAME_OF_THE_NETWORK",
       "qos":[
-        "minimum_bandwith:BRONZE"
+        "maximum_bandwidth:BRONZE"
       ]
     }
   ]
