@@ -38,9 +38,11 @@ public class NseProperties {
 
   private String library_type;
 
-  private String key;
+  //private String key;
 
   private Logger logger = LoggerFactory.getLogger(this.getClass());
+
+  private Service service;
 
   //  public String getBaseUrl() {
   //    return baseUrl;
@@ -74,13 +76,13 @@ public class NseProperties {
   //    this.key = key;
   //  }
 
-  public String getKey() {
-    return key;
-  }
+  //public String getKey() {
+  //  return key;
+  //}
 
-  public void setKey(String key) {
-    this.key = key;
-  }
+  //public void setKey(String key) {
+  //  this.key = key;
+  //}
 
   //  @PostConstruct
   //  private void init() {
@@ -122,4 +124,28 @@ public class NseProperties {
   //    }
   //  }
 
+  public Service getService() {
+    return service;
+  }
+
+  public void setService(Service service) {
+    this.service = service;
+  }
+
+  public static class Service {
+    private String key;
+
+    public String getKey() {
+      return key;
+    }
+
+    public void setKey(String key) {
+      this.key = key;
+    }
+
+    @Override
+    public String toString() {
+      return "Service{" + "key=" + key + '}';
+    }
+  }
 }

@@ -124,7 +124,7 @@ public class CoreModule {
                   nfvo_configuration.getPort(),
                   "1",
                   false,
-                  nse_configuration.getKey());
+                  nse_configuration.getService().getKey());
         } catch (SDKException e) {
           logger.error(
               "Problem instantiating NFVORequestor for VNFR "
@@ -473,7 +473,7 @@ public class CoreModule {
                 nfvo_configuration.getPort(),
                 "1",
                 false,
-                nse_configuration.getKey());
+                nse_configuration.getService().getKey());
         if (nfvo_nsr_req != null) {
           List<NetworkServiceRecord> nsr_list =
               nfvo_nsr_req.getNetworkServiceRecordAgent().findAll();
@@ -600,10 +600,10 @@ public class CoreModule {
     }
   }
 
-  @RequestMapping("/overview")
-  public OpenStackOverview getOverview(
-      @RequestParam(value = "name", defaultValue = "World") String name) {
-    updateOpenStackOverview();
-    return this.osOverview;
-  }
+  //@RequestMapping("/overview")
+  //public OpenStackOverview getOverview(
+  //    @RequestParam(value = "name", defaultValue = "World") String name) {
+  //  updateOpenStackOverview();
+  //  return this.osOverview;
+  //}
 }

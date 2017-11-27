@@ -100,6 +100,7 @@ This chapter describes the parameters that must be considered for configuring th
 | nfvo.username                 | username for authorizing towards NFVO |
 | nfvo.password                 | password for authorizing towards NFVO |
 | nfvo.project.name             | project used for registering for the events|
+| nse.service.key               | Service Key obtained when registering the `network-slicing-engine` service via the NFVO|
 
 # Starting the Network Slicing Engine
 

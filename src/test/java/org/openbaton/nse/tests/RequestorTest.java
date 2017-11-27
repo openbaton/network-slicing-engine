@@ -42,8 +42,7 @@ public class RequestorTest {
   public static void main(String[] args)
       throws SDKException, FileNotFoundException, ClassNotFoundException {
     NFVORequestor requestor =
-        new NFVORequestor(
-            "nse", "project_id", "127.0.0.1", "8080", "1", false, "/etc/openbaton/nse-local.txt");
+        new NFVORequestor("nse", "project_id", "127.0.0.1", "8080", "1", false, "service-key");
     for (Project p : requestor.getProjectAgent().findAll()) {
       requestor.setProjectId(p.getId());
     }
