@@ -6,7 +6,7 @@ _version=${version}
 
 _project_base="/opt/openbaton/openbaton-nse"
 _process_name="network-slicing-engine"
-_screen_name="openbaton"
+_screen_session_name="openbaton"
 _config_file="/etc/openbaton/openbaton-nse.properties"
 
 function checkBinary {
@@ -63,11 +63,11 @@ function init {
 
 function start {
     start_checks
-    screen_exists=$(screen -ls | grep ${_screen_name} | wc -l);
+    screen_exists=$(screen -ls | grep "\.${_screen_session_name}" | wc -l);
     if [ "${screen_exists}" -eq 0 ]; then
-        screen -c screenrc -d -m -S ${_screen_name} -t network-slicing java -jar "$_project_base/build/libs/$_process_name-$_version.jar" --spring.config.location=file:${_config_file}
+        screen -c screenrc -d -m -S ${_screen_session_name} -t network-slicing java -jar "$_project_base/build/libs/$_process_name-$_version.jar" --spring.config.location=file:${_config_file}
     else
-        screen -S $_screen_name -p 0 -X screen -t network-slicing java -jar "$_project_base/build/libs/$_process_name-$_version.jar" --spring.config.location=file:${_config_file}
+        screen -S ${_screen_session_name} -p 0 -X screen -t network-slicing java -jar "$_project_base/build/libs/$_process_name-$_version.jar" --spring.config.location=file:${_config_file}
     fi
 }
 
@@ -78,8 +78,8 @@ function start_fg {
 
 
 #function stop {
-#    if screen -list | grep ${_screen_name}; then
-#	    screen -S ${_screen_name} -p 0 -X stuff "exit$(printf \\r)"
+#    if screen -list | grep "\.${_screen_session_name}"; then
+#	    screen -S ${_screen_session_name} -p 0 -X stuff "exit$(printf \\r)"
 #    fi
 #}
 
