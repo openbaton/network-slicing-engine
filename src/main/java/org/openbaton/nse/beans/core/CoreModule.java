@@ -43,6 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -415,13 +416,23 @@ public class CoreModule {
         for (VNFCInstance vnfci : vdu.getVnfc_instance()) {
           for (Server s : os.compute().servers().list()) {
             if (vnfci.getHostname().equals(s.getName())) {
-              vnf_host_compute_map.put(vnfr.getName(), s.getHypervisorHostname());
+              //vnf_host_compute_map.put(vnfr.getName(), s.getHypervisorHostname());
+              vnf_host_compute_map.put(vnfci.getHostname(), s.getHypervisorHostname());
             }
           }
         }
       }
     }
     return vnf_host_compute_map;
+  }
+
+  private Map<String, String> getRestHostNameComputeNodeMap(OSClient os) {
+    Map<String, String> host_compute_map = new HashMap<String, String>();
+    for (Server s : os.compute().servers().list()) {
+      host_compute_map.put(s.getName(), s.getHypervisorHostname());
+    }
+
+    return host_compute_map;
   }
 
   private void startOpenStackNeutronQoSTask(
@@ -448,7 +459,6 @@ public class CoreModule {
   private void updateOpenStackOverview() {
     ArrayList<Map<String, Object>> project_nsr_map = null;
     ArrayList<Map<String, Object>> complete_computeNodeMap = new ArrayList<>();
-    //ArrayList<Map<String, String>> complete_vnf_computeNodeMap = new ArrayList<>();
 
     NFVORequestor nfvo_nsr_req = null;
     NFVORequestor nfvo_default_req = null;
@@ -528,20 +538,67 @@ public class CoreModule {
                         tmp_node_entry.put("vnfs", new ArrayList<HashMap<String, String>>());
                         tmp_node_entry.put("node_ip", tmp_computeNodeMap.get(key));
                         tmp_node_entry.put("name", key);
+                        tmp_node_entry.put("no_vnfs", new ArrayList<HashMap<String, String>>());
 
                         complete_computeNodeMap.add(tmp_node_entry);
                       }
                     }
                   }
-
+                  // get all units together with their compute node...
                   Map<String, String> tmp_vnf_computeNodeMap =
                       getVnfHostNameComputeNodeMap(tmp_os, nsr.getVnfr());
+                  // get all hosts of the related testbed
+                  Map<String, String> tmp_host_computeNodeMap =
+                      getRestHostNameComputeNodeMap(tmp_os);
+                  // remove the vnfs from the other host entries
+                  for (String key : tmp_vnf_computeNodeMap.keySet()) {
+                    tmp_host_computeNodeMap.remove(key);
+                  }
+
+                  if (tmp_host_computeNodeMap != null) {
+                    boolean host_node_found = false;
+                    for (String key : tmp_host_computeNodeMap.keySet()) {
+                      String current_compute_node = tmp_host_computeNodeMap.get(key);
+                      for (int i = 0; i < complete_computeNodeMap.size(); i++) {
+                        if (complete_computeNodeMap
+                            .get(i)
+                            .get("name")
+                            .equals(current_compute_node)) {
+                          ArrayList<HashMap<String, String>> already_contained_hosts =
+                              (ArrayList<HashMap<String, String>>)
+                                  complete_computeNodeMap.get(i).get("no_vnfs");
+                          boolean found_host = false;
+                          for (int y = 0; y < already_contained_hosts.size(); y++) {
+                            HashMap<String, String> tmp_host = already_contained_hosts.get(y);
+                            if (tmp_host.get("hostname").equals(key)) {
+                              found_host = true;
+                            }
+                          }
+                          if (found_host) {
+                            //logger.debug(
+                            //    "Entry "
+                            //        + vnfci.getHostname()
+                            //        + " already added to "
+                            //        + current_compute_node);
+                          } else {
+                            //logger.debug(
+                            //    "adding " + vnfci.getHostname() + " to " + current_compute_node);
+                            HashMap<String, String> tmp_host_info = new HashMap<String, String>();
+                            tmp_host_info.put("hostname", key);
+                            already_contained_hosts.add(tmp_host_info);
+                          }
+                        }
+                      }
+                    }
+                  }
+
                   //logger.debug(tmp_vnf_computeNodeMap.toString());
                   if (tmp_vnf_computeNodeMap != null) {
                     boolean vnf_node_found = false;
                     // {bt=node05ob100.maas, chess=node06ob100.maas, mme=node03ob100.maas, sgwupgwugw=node07ob100.maas, bind9=node02ob100.maas}
                     for (String key : tmp_vnf_computeNodeMap.keySet()) {
-                      if (key.equals(vnfr.getName())) {
+                      if (key.equals(vnfci.getHostname())) {
+                        //if (key.equals(vnfr.getName())) {
                         String current_compute_node = tmp_vnf_computeNodeMap.get(key);
                         //logger.debug("Checking " + key + " of " + nsr.getName());
                         for (int i = 0; i < complete_computeNodeMap.size(); i++) {
@@ -589,8 +646,11 @@ public class CoreModule {
             }
           }
         }
+        // In the very end add the hosts and hypervisors which did not belong to any NSR
+
         this.osOverview.setNodes(complete_computeNodeMap);
         this.osOverview.setProjects(project_nsr_map);
+        logger.debug("updated overview");
       }
 
     } catch (SDKException e) {
@@ -600,6 +660,7 @@ public class CoreModule {
     }
   }
 
+  //@CrossOrigin(origins = "*")
   //@RequestMapping("/overview")
   //public OpenStackOverview getOverview(
   //    @RequestParam(value = "name", defaultValue = "World") String name) {
