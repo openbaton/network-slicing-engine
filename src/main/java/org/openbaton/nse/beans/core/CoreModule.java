@@ -18,6 +18,8 @@
 
 package org.openbaton.nse.beans.core;
 
+import org.openbaton.catalogue.mano.common.Ip;
+import org.openbaton.catalogue.mano.descriptor.InternalVirtualLink;
 import org.openbaton.catalogue.mano.descriptor.VirtualDeploymentUnit;
 import org.openbaton.catalogue.mano.record.NetworkServiceRecord;
 import org.openbaton.catalogue.mano.record.VNFCInstance;
@@ -29,6 +31,7 @@ import org.openbaton.nse.beans.adapters.openstack.NeutronQoSHandler;
 import org.openbaton.nse.utils.OpenStackOverview;
 import org.openbaton.nse.properties.NseProperties;
 import org.openbaton.nse.properties.NfvoProperties;
+import org.openbaton.nse.utils.Quality;
 import org.openbaton.sdk.NFVORequestor;
 import org.openbaton.sdk.api.exception.SDKException;
 import org.openbaton.sdk.api.rest.VimInstanceAgent;
@@ -457,6 +460,7 @@ public class CoreModule {
   }
 
   private void updateOpenStackOverview() {
+    this.osOverview = new OpenStackOverview();
     ArrayList<Map<String, Object>> project_nsr_map = null;
     ArrayList<Map<String, Object>> complete_computeNodeMap = new ArrayList<>();
 
@@ -539,7 +543,7 @@ public class CoreModule {
                         tmp_node_entry.put("node_ip", tmp_computeNodeMap.get(key));
                         tmp_node_entry.put("name", key);
                         tmp_node_entry.put("no_vnfs", new ArrayList<HashMap<String, String>>());
-
+                        tmp_node_entry.put("networks", new ArrayList<HashMap<String, String>>());
                         complete_computeNodeMap.add(tmp_node_entry);
                       }
                     }
@@ -607,13 +611,12 @@ public class CoreModule {
                               .get("name")
                               .equals(current_compute_node)) {
                             //logger.debug("found compute node " + current_compute_node);
-                            ArrayList<HashMap<String, String>> already_contained_vnfs =
-                                (ArrayList<HashMap<String, String>>)
+                            ArrayList<HashMap<String, Object>> already_contained_vnfs =
+                                (ArrayList<HashMap<String, Object>>)
                                     complete_computeNodeMap.get(i).get("vnfs");
-
                             boolean found_vnf = false;
                             for (int y = 0; y < already_contained_vnfs.size(); y++) {
-                              HashMap<String, String> tmp_vnf = already_contained_vnfs.get(y);
+                              HashMap<String, Object> tmp_vnf = already_contained_vnfs.get(y);
                               if (tmp_vnf.get("hostname").equals(vnfci.getHostname())) {
                                 found_vnf = true;
                               }
@@ -627,14 +630,88 @@ public class CoreModule {
                             } else {
                               //logger.debug(
                               //    "adding " + vnfci.getHostname() + " to " + current_compute_node);
-                              HashMap<String, String> tmp_vnf_info = new HashMap<String, String>();
+                              HashMap<String, Object> tmp_vnf_info = new HashMap<String, Object>();
+                              ArrayList<Map<String, String>> vnf_net_map = new ArrayList<>();
+                              //ArrayList<String> vnf_net_map = new ArrayList<>();
                               tmp_vnf_info.put("hostname", vnfci.getHostname());
                               tmp_vnf_info.put("nsr_name", nsr.getName());
                               tmp_vnf_info.put("nsr_id", nsr.getId());
                               tmp_vnf_info.put("vim_id", tmp_vim.getId());
                               tmp_vnf_info.put("vim_name", tmp_vim.getName());
                               tmp_vnf_info.put("project_id", nsr.getProjectId());
+                              for (InternalVirtualLink vlr : vnfr.getVirtual_link()) {
+                                for (String qosParam : vlr.getQos()) {
+                                  if (qosParam.contains("minimum")
+                                      || qosParam.contains("maximum")
+                                      || qosParam.contains("policy")) {
+                                    HashMap<String, String> tmp_qos_net =
+                                        new HashMap<String, String>();
+                                    tmp_qos_net.put(vlr.getName(), vlr.getQos().toString());
+                                    vnf_net_map.add(tmp_qos_net);
+                                    //logger.debug("Added " + vlr.getName() + " with QOS");
+                                  }
+                                }
+                              }
+                              for (Ip ip : vnfci.getIps()) {
+                                boolean found_net = false;
+                                // Check if we already got the entry..
+                                //logger.debug("Will now check for existing entries ");
+                                for (Map<String, String> entry : vnf_net_map) {
+                                  //logger.debug("Checking " + entry.toString());
+                                  if (entry.containsKey(ip.getNetName())) {
+                                    //logger.debug("Found existing net.. will not add");
+                                    found_net = true;
+                                  }
+                                }
+                                if (!found_net) {
+                                  //logger.debug("Adding not existing net");
+                                  HashMap<String, String> tmp_qos_net =
+                                      new HashMap<String, String>();
+                                  tmp_qos_net.put(ip.getNetName(), "none");
+                                  vnf_net_map.add(tmp_qos_net);
+                                }
+                                //vnf_net_map.add(ip.getNetName());
+                                //}
+                              }
+                              tmp_vnf_info.put("networks", vnf_net_map);
                               already_contained_vnfs.add(tmp_vnf_info);
+                              // Also check for the networks of the vnf
+                              ArrayList<HashMap<String, String>> already_contained_networks =
+                                  (ArrayList<HashMap<String, String>>)
+                                      complete_computeNodeMap.get(i).get("networks");
+                              if (already_contained_networks.isEmpty()) {
+                                // If the list is empty we can directly add the networks of this VNF..
+                                for (Ip ip : vnfci.getIps()) {
+                                  //logger.debug("Adding " + ip.getNetName());
+                                  HashMap<String, String> tmp_net_info =
+                                      new HashMap<String, String>();
+                                  tmp_net_info.put("name", ip.getNetName());
+                                  already_contained_networks.add(tmp_net_info);
+                                }
+
+                              } else {
+                                for (int x = 0; x < already_contained_networks.size(); x++) {
+                                  boolean found_network = false;
+                                  HashMap<String, String> tmp_net =
+                                      already_contained_networks.get(x);
+                                  // Check each IP address...
+                                  for (Ip ip : vnfci.getIps()) {
+                                    //logger.debug("Checking " + ip.getNetName());
+                                    if (tmp_net.get("name").equals(ip.getNetName())) {
+                                      found_network = true;
+                                    }
+                                  }
+                                  if (found_network) {
+                                    //logger.debug(
+                                    //    "Network " + tmp_net.get("name") + " already exists");
+                                  } else {
+                                    HashMap<String, String> tmp_net_info =
+                                        new HashMap<String, String>();
+                                    tmp_net_info.put("name", tmp_net.get("name"));
+                                    already_contained_networks.add(tmp_net_info);
+                                  }
+                                }
+                              }
                             }
                           }
                         }
@@ -647,12 +724,10 @@ public class CoreModule {
           }
         }
         // In the very end add the hosts and hypervisors which did not belong to any NSR
-
         this.osOverview.setNodes(complete_computeNodeMap);
         this.osOverview.setProjects(project_nsr_map);
         logger.debug("updated overview");
       }
-
     } catch (SDKException e) {
       logger.error("Problem instantiating NFVORequestor with project id null");
     } catch (FileNotFoundException e) {
