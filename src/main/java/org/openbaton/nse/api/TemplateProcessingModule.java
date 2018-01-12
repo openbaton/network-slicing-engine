@@ -89,6 +89,7 @@ public class TemplateProcessingModule implements CommandLineRunner {
     eventEndpointCreation.setEvent(Action.INSTANTIATE_FINISH);
     eventEndpointCreation.setEndpoint(queueName_eventInstantiateFinish);
     eventEndpointCreation.setName("eventNsrInstantiateFinish");
+    eventEndpointCreation.setProjectId("*");
     eventEndpointCreation = requestor.getEventAgent().create(eventEndpointCreation);
 
     EventEndpoint eventEndpointDeletion = new EventEndpoint();
@@ -96,6 +97,7 @@ public class TemplateProcessingModule implements CommandLineRunner {
     eventEndpointDeletion.setEvent(Action.ERROR);
     eventEndpointDeletion.setEndpoint(queueName_eventError);
     eventEndpointDeletion.setName("eventNsrError");
+    eventEndpointDeletion.setProjectId("*");
     eventEndpointDeletion = requestor.getEventAgent().create(eventEndpointDeletion);
 
     EventEndpoint eventEndpointScale = new EventEndpoint();
@@ -103,6 +105,7 @@ public class TemplateProcessingModule implements CommandLineRunner {
     eventEndpointScale.setEvent(Action.SCALED);
     eventEndpointScale.setEndpoint(queueName_eventScale);
     eventEndpointScale.setName("eventNsrScaleFinish");
+    eventEndpointScale.setProjectId("*");
     eventEndpointScale = requestor.getEventAgent().create(eventEndpointScale);
 
     this.eventIds.add(eventEndpointCreation.getId());
