@@ -40,6 +40,8 @@ import org.openstack4j.api.exceptions.AuthenticationException;
 import org.openstack4j.model.common.Identifier;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.ext.Hypervisor;
+import org.openstack4j.model.network.IP;
+import org.openstack4j.model.network.Network;
 import org.openstack4j.model.network.Port;
 import org.openstack4j.openstack.OSFactory;
 import org.slf4j.Logger;
@@ -411,6 +413,38 @@ public class CoreModule {
     return computenode_ip_map;
   }
 
+  private HashMap<String, Object> getNetworkNames(OSClient os) {
+    HashMap<String, Object> networks = new HashMap<String, Object>();
+    for (Network n : os.networking().network().list()) {
+      networks.put(n.getId(), n.getName());
+    }
+    return networks;
+  }
+
+  private HashMap<String, Object> getPortIps(OSClient os, ArrayList<String> ips) {
+    HashMap<String, Object> port_map = new HashMap<String, Object>();
+    for (Port p : os.networking().port().list()) {
+      ArrayList<String> tmp_ips = new ArrayList<String>();
+      for (IP i : p.getFixedIps()) {
+
+        //ArrayList<String> tmp_ips;
+        //if (port_map.containsKey(p.getId())) {
+        //  tmp_ips = ((ArrayList<String>) port_map.get(p.getId()));
+        //  tmp_ips.add(i.getIpAddress());
+        //} else {
+        //  tmp_ips = new ArrayList<String>();
+
+        // Only add the ports we want to check...
+        if (ips.contains(i.getIpAddress())) {
+          tmp_ips.add(i.getIpAddress());
+          port_map.put(p.getId(), tmp_ips);
+        }
+        //}
+      }
+    }
+    return port_map;
+  }
+
   private Map<String, String> getVnfHostNameComputeNodeMap(
       OSClient os, Set<VirtualNetworkFunctionRecord> vnfrs) {
     Map<String, String> vnf_host_compute_map = new HashMap<String, String>();
@@ -461,11 +495,64 @@ public class CoreModule {
 
   private void updateOpenStackOverview() {
     this.osOverview = new OpenStackOverview();
-    ArrayList<Map<String, Object>> project_nsr_map = null;
-    ArrayList<Map<String, Object>> complete_computeNodeMap = new ArrayList<>();
+    //ArrayList<Map<String, Object>> project_nsr_map = null;
+    //ArrayList<Map<String, Object>> complete_computeNodeMap = new ArrayList<>();
 
     NFVORequestor nfvo_nsr_req = null;
     NFVORequestor nfvo_default_req = null;
+
+    // Set up a variable which contains the already processed vims, we distinguish via the auth_url + user + tenant here
+    // to avoid contacting the same infrastructure used in different projects.
+    ArrayList<Integer> processed_vims = new ArrayList<Integer>();
+    // Set up a map containing all the vim ids listed to the internal generated hash
+    HashMap<Integer, Object> vim_map = new HashMap<Integer, Object>();
+    // Set up a map containing all external vim ids together with their names
+    HashMap<String, String> vim_name_map = new HashMap<String, String>();
+    // Set up a map containing all external vim ids together with their names
+    HashMap<String, String> vim_type_map = new HashMap<String, String>();
+    // Set up a map containing all internal vim hashs and related node information ( openstack only currently)
+    HashMap<Integer, Object> node_map = new HashMap<Integer, Object>();
+    // Set up a map containing all projects ids together with their names
+    HashMap<String, String> project_id_map = new HashMap<String, String>();
+    // Set up a map containing all projects together with a list of nsr ids
+    HashMap<String, Object> project_nsr_map = new HashMap<String, Object>();
+    // Set up a map containing all projects ids together with their names
+    HashMap<String, String> nsr_name_map = new HashMap<String, String>();
+    // Set up a map containing all projects together with a list of nsr ids
+    HashMap<String, Object> nsr_vnf_map = new HashMap<String, Object>();
+    // Set up a map containing the vnfs and their networks from Open Baton side ( virtual link records )
+    HashMap<String, Object> vnf_vlr_map = new HashMap<String, Object>();
+    // Set up a map containing all vlr ids together with their names
+    HashMap<String, String> vlr_name_map = new HashMap<String, String>();
+    // Set up a map containing all vlr ids together with their assigned bandwidth qualities
+    HashMap<String, String> vlr_quality_map = new HashMap<String, String>();
+    // Set up a map containing all vnfs and their vdus
+    HashMap<String, Object> vnf_vdu_map = new HashMap<String, Object>();
+    // Set up a a map containing the names of each vdu listed by their ids
+    HashMap<String, String> vdu_name_map = new HashMap<String, String>();
+    // Set up a map containing the vdu and their vnfcis
+    HashMap<String, Object> vdu_vnfci_map = new HashMap<String, Object>();
+    // Set up a map containing the vnfci names with their ids ( These are the host names in the end )
+    HashMap<String, String> vnfci_name_map = new HashMap<String, String>();
+    // Set up a map containing the ips of each vnfci
+    HashMap<String, Object> vnfci_ip_map = new HashMap<String, Object>();
+    // Set up a map containing the names of the networks for each ip
+    HashMap<String, String> ip_name_map = new HashMap<String, String>();
+    // Set up a map containing the ips of the networks/ip ids
+    HashMap<String, String> ip_addresses_map = new HashMap<String, String>();
+
+    // ###### OpenStack related
+    // Set up a map containing the OpenStack port ids listed to the internal hash of the vim
+    HashMap<Integer, Object> port_id_map = new HashMap<Integer, Object>();
+    // Set up a map containing the OpenStack port ids together with all their ip addresses
+    HashMap<String, Object> port_ip_map = new HashMap<String, Object>();
+    // A list of ips which have to be checked for ports + subnets + nets ( listed by internal hash..)
+    HashMap<Integer, Object> ips_to_be_checked = new HashMap<Integer, Object>();
+    // A simple map which saves the reference to the osclients for specific nodes
+    HashMap<Integer, OSClient> os_client_map = new HashMap<Integer, OSClient>();
+    // Set up a map containing the OpenStack port ids listed with their parent network id
+    HashMap<String, String> port_net_map = new HashMap<String, String>();
+
     try {
       nfvo_default_req =
           new NFVORequestor(
@@ -478,6 +565,7 @@ public class CoreModule {
               "1");
       // Iterate over all projects and collect all NSRs
       for (Project project : nfvo_default_req.getProjectAgent().findAll()) {
+        project_id_map.put(project.getId(), project.getName());
         //logger.debug("Checking project : " + project.getName());
         nfvo_nsr_req =
             new NFVORequestor(
@@ -491,231 +579,131 @@ public class CoreModule {
         if (nfvo_nsr_req != null) {
           List<NetworkServiceRecord> nsr_list =
               nfvo_nsr_req.getNetworkServiceRecordAgent().findAll();
-
-          if (project_nsr_map == null) {
-            //project_nsr_map = new HashMap<String, ArrayList<HashMap<String, String>>>();
-
-            project_nsr_map = new ArrayList<>();
-          }
+          // ###################################################
+          //logger.debug(String.valueOf(nsr_list));
           for (NetworkServiceRecord nsr : nsr_list) {
-            ArrayList<HashMap<String, String>> tmp_nsr_list =
-                new ArrayList<HashMap<String, String>>();
-            //logger.debug("Checking NSR : " + nsr.getName());
-            boolean found_project = false;
-            for (int n = 0; n < project_nsr_map.size(); n++) {
-              Map<String, Object> tmp = project_nsr_map.get(n);
-              if (tmp.get("name").equals(project.getName())) {
-                found_project = true;
-              }
-            }
-            if (!found_project) {
-              HashMap<String, Object> tmp_project_entry = new HashMap<String, Object>();
-              HashMap<String, String> tmp_nsr_entry = new HashMap<String, String>();
-              tmp_nsr_entry.put("name", nsr.getName());
-              tmp_nsr_entry.put("id", nsr.getId());
-              tmp_nsr_list.add(tmp_nsr_entry);
-              tmp_project_entry.put("nsrs", tmp_nsr_list);
-              tmp_project_entry.put("name", project.getName());
-              project_nsr_map.add(tmp_project_entry);
+            nsr_name_map.put(nsr.getId(), nsr.getName());
+            ArrayList<String> tmp_nsrs;
+            if (project_nsr_map.containsKey(project.getId())) {
+              tmp_nsrs = ((ArrayList<String>) project_nsr_map.get(project.getId()));
+              tmp_nsrs.add(nsr.getId());
             } else {
-              //logger.debug("Already found project " + project.getName() + " in the hashmap");
+              tmp_nsrs = new ArrayList<String>();
+              tmp_nsrs.add(nsr.getId());
+              project_nsr_map.put(project.getId(), tmp_nsrs);
             }
             for (VirtualNetworkFunctionRecord vnfr : nsr.getVnfr()) {
-              //logger.debug("Checking VNFR : " + vnfr.getName());
+              ArrayList<String> tmp_vnfs;
+              if (nsr_vnf_map.containsKey(nsr.getId())) {
+                tmp_vnfs = ((ArrayList<String>) nsr_vnf_map.get(nsr.getId()));
+                tmp_vnfs.add(vnfr.getId());
+              } else {
+                tmp_vnfs = new ArrayList<String>();
+                tmp_vnfs.add(vnfr.getId());
+                nsr_vnf_map.put(nsr.getId(), tmp_vnfs);
+              }
+              for (InternalVirtualLink vlr : vnfr.getVirtual_link()) {
+                ArrayList<String> tmp_vlrs;
+                if (vnf_vlr_map.containsKey(vnfr.getId())) {
+                  tmp_vlrs = ((ArrayList<String>) vnf_vlr_map.get(vnfr.getId()));
+                  tmp_vlrs.add(vlr.getId());
+                } else {
+                  tmp_vlrs = new ArrayList<String>();
+                  tmp_vlrs.add(vlr.getId());
+                  vnf_vlr_map.put(vnfr.getId(), tmp_vlrs);
+                }
+                vlr_name_map.put(vlr.getId(), vlr.getName());
+                for (String qosParam : vlr.getQos()) {
+                  if (qosParam.contains("minimum")
+                      || qosParam.contains("maximum")
+                      || qosParam.contains("policy")) {
+                    vlr_quality_map.put(vlr.getId(), vlr.getQos().toString());
+                  }
+                }
+              }
               for (VirtualDeploymentUnit vdu : vnfr.getVdu()) {
+                ArrayList<String> tmp_vdus;
+                if (vnf_vdu_map.containsKey(vnfr.getId())) {
+                  tmp_vdus = ((ArrayList<String>) vnf_vdu_map.get(vnfr.getId()));
+                  tmp_vdus.add(vdu.getId());
+                } else {
+                  tmp_vdus = new ArrayList<String>();
+                  tmp_vdus.add(vdu.getId());
+                  vnf_vdu_map.put(vnfr.getId(), tmp_vdus);
+                }
+                vdu_name_map.put(vdu.getId(), vdu.getName());
                 for (VNFCInstance vnfci : vdu.getVnfc_instance()) {
+                  vnfci_name_map.put(vnfci.getId(), vnfci.getHostname());
+                  ArrayList<String> tmp_vnfcis;
+                  if (vdu_vnfci_map.containsKey(vdu.getId())) {
+                    tmp_vnfcis = ((ArrayList<String>) vdu_vnfci_map.get(vdu.getId()));
+                    tmp_vnfcis.add(vnfci.getId());
+                  } else {
+                    tmp_vnfcis = new ArrayList<String>();
+                    tmp_vnfcis.add(vnfci.getId());
+                    vdu_vnfci_map.put(vdu.getId(), tmp_vnfcis);
+                  }
                   VimInstance tmp_vim = this.getVimInstance(nfvo_nsr_req, vnfci.getVim_id());
-                  OSClient tmp_os = getOSClient(tmp_vim);
-                  Map<String, String> tmp_computeNodeMap = getComputeNodeMap(tmp_os);
-                  if (tmp_computeNodeMap != null) {
-                    // We collect all involved compute nodes
-                    for (String key : tmp_computeNodeMap.keySet()) {
-                      boolean node_found = false;
-                      for (int i = 0; i < complete_computeNodeMap.size(); i++) {
-                        if (complete_computeNodeMap.get(i).get("name").equals(key)) {
-                          node_found = true;
-                        }
-                      }
-                      if (!node_found) {
-                        HashMap<String, Object> tmp_node_entry = new HashMap<String, Object>();
-                        //tmp_node_entry.put(key, tmp_computeNodeMap.get(key));
-                        tmp_node_entry.put("vnfs", new ArrayList<HashMap<String, String>>());
-                        tmp_node_entry.put("node_ip", tmp_computeNodeMap.get(key));
-                        tmp_node_entry.put("name", key);
-                        tmp_node_entry.put("no_vnfs", new ArrayList<HashMap<String, String>>());
-                        tmp_node_entry.put("networks", new ArrayList<HashMap<String, String>>());
-                        complete_computeNodeMap.add(tmp_node_entry);
-                      }
+                  // Generate an identifier internally to not distinguish vims by their internal id but at other crucial information to avoid contacting the same infrastructure
+                  int vim_identifier =
+                      (tmp_vim.getAuthUrl() + tmp_vim.getUsername() + tmp_vim.getTenant())
+                              .hashCode()
+                          & 0xfffffff;
+                  if (!vim_name_map.containsKey(tmp_vim.getId())) {
+                    vim_name_map.put(tmp_vim.getId(), tmp_vim.getName());
+                  }
+                  if (!vim_type_map.containsKey(tmp_vim.getId())) {
+                    vim_type_map.put(tmp_vim.getId(), tmp_vim.getType());
+                  }
+                  for (Ip ip : vnfci.getIps()) {
+                    ip_name_map.put(ip.getId(), ip.getNetName());
+                    ip_addresses_map.put(ip.getId(), ip.getIp());
+                    ArrayList<String> tmp_ips;
+                    if (vnfci_ip_map.containsKey(vnfci.getId())) {
+                      tmp_ips = ((ArrayList<String>) vnfci_ip_map.get(vnfci.getId()));
+                      tmp_ips.add(ip.getId());
+                    } else {
+                      tmp_ips = new ArrayList<String>();
+                      tmp_ips.add(ip.getId());
+                      vnfci_ip_map.put(vnfci.getId(), tmp_ips);
+                    }
+                    ArrayList<String> tmp_ip_list;
+                    if (ips_to_be_checked.containsKey(vim_identifier)) {
+                      tmp_ip_list = ((ArrayList<String>) ips_to_be_checked.get(vim_identifier));
+                      tmp_ip_list.add(ip.getIp());
+                    } else {
+                      tmp_ip_list = new ArrayList<String>();
+                      tmp_ip_list.add(ip.getIp());
+                      ips_to_be_checked.put(vim_identifier, tmp_ip_list);
                     }
                   }
-                  // get all units together with their compute node...
-                  Map<String, String> tmp_vnf_computeNodeMap =
-                      getVnfHostNameComputeNodeMap(tmp_os, nsr.getVnfr());
-                  // get all hosts of the related testbed
-                  Map<String, String> tmp_host_computeNodeMap =
-                      getRestHostNameComputeNodeMap(tmp_os);
-                  // remove the vnfs from the other host entries
-                  for (String key : tmp_vnf_computeNodeMap.keySet()) {
-                    tmp_host_computeNodeMap.remove(key);
-                  }
+                  if (!processed_vims.contains(vim_identifier)) {
+                    processed_vims.add(vim_identifier);
+                    ArrayList<String> tmp_vim_ids = new ArrayList<String>();
+                    tmp_vim_ids.add(tmp_vim.getId());
+                    vim_map.put(vim_identifier, tmp_vim_ids);
 
-                  if (tmp_host_computeNodeMap != null) {
-                    boolean host_node_found = false;
-                    for (String key : tmp_host_computeNodeMap.keySet()) {
-                      String current_compute_node = tmp_host_computeNodeMap.get(key);
-                      for (int i = 0; i < complete_computeNodeMap.size(); i++) {
-                        if (complete_computeNodeMap
-                            .get(i)
-                            .get("name")
-                            .equals(current_compute_node)) {
-                          ArrayList<HashMap<String, String>> already_contained_hosts =
-                              (ArrayList<HashMap<String, String>>)
-                                  complete_computeNodeMap.get(i).get("no_vnfs");
-                          boolean found_host = false;
-                          for (int y = 0; y < already_contained_hosts.size(); y++) {
-                            HashMap<String, String> tmp_host = already_contained_hosts.get(y);
-                            if (tmp_host.get("hostname").equals(key)) {
-                              found_host = true;
-                            }
-                          }
-                          if (found_host) {
-                            //logger.debug(
-                            //    "Entry "
-                            //        + vnfci.getHostname()
-                            //        + " already added to "
-                            //        + current_compute_node);
-                          } else {
-                            //logger.debug(
-                            //    "adding " + vnfci.getHostname() + " to " + current_compute_node);
-                            HashMap<String, String> tmp_host_info = new HashMap<String, String>();
-                            tmp_host_info.put("hostname", key);
-                            already_contained_hosts.add(tmp_host_info);
-                          }
+                    if (tmp_vim.getType().equals("openstack")) {
+                      OSClient tmp_os = getOSClient(tmp_vim);
+                      if (!os_client_map.containsKey(vim_identifier)) {
+                        os_client_map.put(vim_identifier, tmp_os);
+                      }
+                      Map<String, String> tmp_computeNodeMap = getComputeNodeMap(tmp_os);
+                      if (tmp_computeNodeMap != null) {
+                        // We collect all involved compute nodes
+                        ArrayList<String> tmp_node_names = new ArrayList<String>();
+                        for (String key : tmp_computeNodeMap.keySet()) {
+
+                          tmp_node_names.add(key);
                         }
+                        node_map.put(vim_identifier, tmp_node_names);
                       }
                     }
-                  }
-
-                  //logger.debug(tmp_vnf_computeNodeMap.toString());
-                  if (tmp_vnf_computeNodeMap != null) {
-                    boolean vnf_node_found = false;
-                    // {bt=node05ob100.maas, chess=node06ob100.maas, mme=node03ob100.maas, sgwupgwugw=node07ob100.maas, bind9=node02ob100.maas}
-                    for (String key : tmp_vnf_computeNodeMap.keySet()) {
-                      if (key.equals(vnfci.getHostname())) {
-                        //if (key.equals(vnfr.getName())) {
-                        String current_compute_node = tmp_vnf_computeNodeMap.get(key);
-                        //logger.debug("Checking " + key + " of " + nsr.getName());
-                        for (int i = 0; i < complete_computeNodeMap.size(); i++) {
-                          if (complete_computeNodeMap
-                              .get(i)
-                              .get("name")
-                              .equals(current_compute_node)) {
-                            //logger.debug("found compute node " + current_compute_node);
-                            ArrayList<HashMap<String, Object>> already_contained_vnfs =
-                                (ArrayList<HashMap<String, Object>>)
-                                    complete_computeNodeMap.get(i).get("vnfs");
-                            boolean found_vnf = false;
-                            for (int y = 0; y < already_contained_vnfs.size(); y++) {
-                              HashMap<String, Object> tmp_vnf = already_contained_vnfs.get(y);
-                              if (tmp_vnf.get("hostname").equals(vnfci.getHostname())) {
-                                found_vnf = true;
-                              }
-                            }
-                            if (found_vnf) {
-                              //logger.debug(
-                              //    "Entry "
-                              //        + vnfci.getHostname()
-                              //        + " already added to "
-                              //        + current_compute_node);
-                            } else {
-                              //logger.debug(
-                              //    "adding " + vnfci.getHostname() + " to " + current_compute_node);
-                              HashMap<String, Object> tmp_vnf_info = new HashMap<String, Object>();
-                              ArrayList<Map<String, String>> vnf_net_map = new ArrayList<>();
-                              //ArrayList<String> vnf_net_map = new ArrayList<>();
-                              tmp_vnf_info.put("hostname", vnfci.getHostname());
-                              tmp_vnf_info.put("nsr_name", nsr.getName());
-                              tmp_vnf_info.put("nsr_id", nsr.getId());
-                              tmp_vnf_info.put("vim_id", tmp_vim.getId());
-                              tmp_vnf_info.put("vim_name", tmp_vim.getName());
-                              tmp_vnf_info.put("project_id", nsr.getProjectId());
-                              for (InternalVirtualLink vlr : vnfr.getVirtual_link()) {
-                                for (String qosParam : vlr.getQos()) {
-                                  if (qosParam.contains("minimum")
-                                      || qosParam.contains("maximum")
-                                      || qosParam.contains("policy")) {
-                                    HashMap<String, String> tmp_qos_net =
-                                        new HashMap<String, String>();
-                                    tmp_qos_net.put(vlr.getName(), vlr.getQos().toString());
-                                    vnf_net_map.add(tmp_qos_net);
-                                    //logger.debug("Added " + vlr.getName() + " with QOS");
-                                  }
-                                }
-                              }
-                              for (Ip ip : vnfci.getIps()) {
-                                boolean found_net = false;
-                                // Check if we already got the entry..
-                                //logger.debug("Will now check for existing entries ");
-                                for (Map<String, String> entry : vnf_net_map) {
-                                  //logger.debug("Checking " + entry.toString());
-                                  if (entry.containsKey(ip.getNetName())) {
-                                    //logger.debug("Found existing net.. will not add");
-                                    found_net = true;
-                                  }
-                                }
-                                if (!found_net) {
-                                  //logger.debug("Adding not existing net");
-                                  HashMap<String, String> tmp_qos_net =
-                                      new HashMap<String, String>();
-                                  tmp_qos_net.put(ip.getNetName(), "none");
-                                  vnf_net_map.add(tmp_qos_net);
-                                }
-                                //vnf_net_map.add(ip.getNetName());
-                                //}
-                              }
-                              tmp_vnf_info.put("networks", vnf_net_map);
-                              already_contained_vnfs.add(tmp_vnf_info);
-                              // Also check for the networks of the vnf
-                              ArrayList<HashMap<String, String>> already_contained_networks =
-                                  (ArrayList<HashMap<String, String>>)
-                                      complete_computeNodeMap.get(i).get("networks");
-                              if (already_contained_networks.isEmpty()) {
-                                // If the list is empty we can directly add the networks of this VNF..
-                                for (Ip ip : vnfci.getIps()) {
-                                  //logger.debug("Adding " + ip.getNetName());
-                                  HashMap<String, String> tmp_net_info =
-                                      new HashMap<String, String>();
-                                  tmp_net_info.put("name", ip.getNetName());
-                                  already_contained_networks.add(tmp_net_info);
-                                }
-
-                              } else {
-                                for (int x = 0; x < already_contained_networks.size(); x++) {
-                                  boolean found_network = false;
-                                  HashMap<String, String> tmp_net =
-                                      already_contained_networks.get(x);
-                                  // Check each IP address...
-                                  for (Ip ip : vnfci.getIps()) {
-                                    //logger.debug("Checking " + ip.getNetName());
-                                    if (tmp_net.get("name").equals(ip.getNetName())) {
-                                      found_network = true;
-                                    }
-                                  }
-                                  if (found_network) {
-                                    //logger.debug(
-                                    //    "Network " + tmp_net.get("name") + " already exists");
-                                  } else {
-                                    HashMap<String, String> tmp_net_info =
-                                        new HashMap<String, String>();
-                                    tmp_net_info.put("name", tmp_net.get("name"));
-                                    already_contained_networks.add(tmp_net_info);
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
+                  } else {
+                    // in this case we already found the vim via the internal generated hash and only need to append the vim id to the hash in the map
+                    ArrayList<String> vim_ids = ((ArrayList<String>) vim_map.get(vim_identifier));
+                    if (!vim_ids.contains(tmp_vim.getId())) {
+                      vim_ids.add(tmp_vim.getId());
                     }
                   }
                 }
@@ -723,10 +711,64 @@ public class CoreModule {
             }
           }
         }
+
+        this.osOverview.setVims(vim_map);
+        this.osOverview.setVim_names(vim_name_map);
+        this.osOverview.setVim_types(vim_type_map);
+        this.osOverview.setOs_nodes(node_map);
+        this.osOverview.setProjects(project_id_map);
+        this.osOverview.setNsrs(project_nsr_map);
+        this.osOverview.setNsr_names(nsr_name_map);
+        this.osOverview.setNsr_vnfs(nsr_vnf_map);
+        this.osOverview.setVnf_vlrs(vnf_vlr_map);
+        this.osOverview.setVlr_names(vlr_name_map);
+        this.osOverview.setVlr_qualities(vlr_quality_map);
+        this.osOverview.setVnf_vdus(vnf_vdu_map);
+        this.osOverview.setVdu_names(vdu_name_map);
+        this.osOverview.setVdu_vnfcis(vdu_vnfci_map);
+        this.osOverview.setVnfci_names(vnfci_name_map);
+        this.osOverview.setVnfci_ips(vnfci_ip_map);
+        this.osOverview.setIp_names(ip_name_map);
+        this.osOverview.setIp_addresses(ip_addresses_map);
+
+        // TODO : Switch to threads to collect information of the infrastructure ( should become way faster )
+        for (Integer i : node_map.keySet()) {
+          OSClient tmp_os = os_client_map.get(i);
+          HashMap<String, Object> tmp_portMap =
+              getPortIps(tmp_os, (ArrayList<String>) ips_to_be_checked.get(i));
+          if (tmp_portMap != null) {
+            for (String p_id : tmp_portMap.keySet()) {
+              ArrayList<String> tmp_port_ids;
+              if (port_id_map.containsKey(i)) {
+                tmp_port_ids = ((ArrayList<String>) port_id_map.get(i));
+                if (!tmp_port_ids.contains(p_id)) {
+                  tmp_port_ids.add(p_id);
+                }
+              } else {
+                tmp_port_ids = new ArrayList<String>();
+                tmp_port_ids.add(p_id);
+                port_id_map.put(i, tmp_port_ids);
+              }
+            }
+          }
+          port_ip_map = tmp_portMap;
+        }
+        // TODO : collect information about the os networks, to be able to integrate with the Open Baton view on resources
+        for (Integer i : port_id_map.keySet()) {
+          OSClient tmp_os = os_client_map.get(i);
+          for (String p_id : ((ArrayList<String>) port_id_map.get(i))) {
+            port_net_map.put(p_id, tmp_os.networking().port().get(p_id).getNetworkId());
+          }
+        }
+
+        this.osOverview.setOs_port_ids(port_id_map);
+        this.osOverview.setOs_port_ips(port_ip_map);
+        this.osOverview.setOs_port_net_map(port_net_map);
+
         // In the very end add the hosts and hypervisors which did not belong to any NSR
-        this.osOverview.setNodes(complete_computeNodeMap);
-        this.osOverview.setProjects(project_nsr_map);
-        logger.debug("updated overview");
+        //this.osOverview.setNodes(complete_computeNodeMap);
+        //this.osOverview.setProjects(project_nsr_map);
+        //logger.debug("updated overview");
       }
     } catch (SDKException e) {
       logger.error("Problem instantiating NFVORequestor with project id null");
