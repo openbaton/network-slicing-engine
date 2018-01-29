@@ -48,11 +48,17 @@ public class OpenStackOverview {
 
   private Map<String, String> ip_addresses;
 
+  private Map<String, Integer> vnfci_vims;
+
   private Map<Integer, Object> os_port_ids;
 
   private Map<String, Object> os_port_ips;
 
   private Map<String, String> os_port_net_map;
+
+  private Map<String, String> os_net_names;
+
+  private Map<String, String> vnfci_hypervisors;
 
   public void setVims(Map<Integer, Object> vims) {
     this.vims = vims;
@@ -126,6 +132,10 @@ public class OpenStackOverview {
     this.ip_addresses = ip_addresses;
   }
 
+  public void setVnfci_vims(Map<String, Integer> vnfci_vims) {
+    this.vnfci_vims = vnfci_vims;
+  }
+
   public void setOs_port_ids(Map<Integer, Object> os_port_ids) {
     this.os_port_ids = os_port_ids;
   }
@@ -136,6 +146,14 @@ public class OpenStackOverview {
 
   public void setOs_port_net_map(Map<String, String> os_port_net_map) {
     this.os_port_net_map = os_port_net_map;
+  }
+
+  public void setOs_net_names(Map<String, String> os_net_names) {
+    this.os_net_names = os_net_names;
+  }
+
+  public void setVnfci_hypervisors(Map<String, String> vnfci_hypervisors) {
+    this.vnfci_hypervisors = vnfci_hypervisors;
   }
 
   public OpenStackOverview() {
@@ -157,8 +175,11 @@ public class OpenStackOverview {
     this.vnfci_ips = new HashMap<String, Object>();
     this.ip_names = new HashMap<String, String>();
     this.ip_addresses = new HashMap<String, String>();
+    this.vnfci_vims = new HashMap<String, Integer>();
     this.os_port_ids = new HashMap<Integer, Object>();
     this.os_port_ips = new HashMap<String, Object>();
     this.os_port_net_map = new HashMap<String, String>();
+    this.os_net_names = new HashMap<String, String>();
+    this.vnfci_hypervisors = new HashMap<String, String>();
   }
 }

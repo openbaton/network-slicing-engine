@@ -426,7 +426,6 @@ public class CoreModule {
     for (Port p : os.networking().port().list()) {
       ArrayList<String> tmp_ips = new ArrayList<String>();
       for (IP i : p.getFixedIps()) {
-
         //ArrayList<String> tmp_ips;
         //if (port_map.containsKey(p.getId())) {
         //  tmp_ips = ((ArrayList<String>) port_map.get(p.getId()));
@@ -540,6 +539,8 @@ public class CoreModule {
     HashMap<String, String> ip_name_map = new HashMap<String, String>();
     // Set up a map containing the ips of the networks/ip ids
     HashMap<String, String> ip_addresses_map = new HashMap<String, String>();
+    // Set up a map containing the vnfci ids together with their vim ids..
+    HashMap<String, Integer> vnfci_vim_map = new HashMap<String, Integer>();
 
     // ###### OpenStack related
     // Set up a map containing the OpenStack port ids listed to the internal hash of the vim
@@ -552,6 +553,10 @@ public class CoreModule {
     HashMap<Integer, OSClient> os_client_map = new HashMap<Integer, OSClient>();
     // Set up a map containing the OpenStack port ids listed with their parent network id
     HashMap<String, String> port_net_map = new HashMap<String, String>();
+    // Set up a map containing the OpenStack network ids listed with their names
+    HashMap<String, String> net_name_map = new HashMap<String, String>();
+    // Set up a map containing the vnfci ids listed with their related hypervisor/ compute node
+    HashMap<String, String> vnfci_hypervisor_map = new HashMap<String, String>();
 
     try {
       nfvo_default_req =
@@ -565,7 +570,6 @@ public class CoreModule {
               "1");
       // Iterate over all projects and collect all NSRs
       for (Project project : nfvo_default_req.getProjectAgent().findAll()) {
-        project_id_map.put(project.getId(), project.getName());
         //logger.debug("Checking project : " + project.getName());
         nfvo_nsr_req =
             new NFVORequestor(
@@ -579,6 +583,9 @@ public class CoreModule {
         if (nfvo_nsr_req != null) {
           List<NetworkServiceRecord> nsr_list =
               nfvo_nsr_req.getNetworkServiceRecordAgent().findAll();
+          if (!nsr_list.isEmpty()) {
+            project_id_map.put(project.getId(), project.getName());
+          }
           // ###################################################
           //logger.debug(String.valueOf(nsr_list));
           for (NetworkServiceRecord nsr : nsr_list) {
@@ -651,10 +658,12 @@ public class CoreModule {
                           & 0xfffffff;
                   if (!vim_name_map.containsKey(tmp_vim.getId())) {
                     vim_name_map.put(tmp_vim.getId(), tmp_vim.getName());
-                  }
-                  if (!vim_type_map.containsKey(tmp_vim.getId())) {
                     vim_type_map.put(tmp_vim.getId(), tmp_vim.getType());
+                    for (org.openbaton.catalogue.nfvo.Network n : tmp_vim.getNetworks()) {
+                      net_name_map.put(n.getExtId(), n.getName());
+                    }
                   }
+                  vnfci_vim_map.put(vnfci.getId(), vim_identifier);
                   for (Ip ip : vnfci.getIps()) {
                     ip_name_map.put(ip.getId(), ip.getNetName());
                     ip_addresses_map.put(ip.getId(), ip.getIp());
@@ -730,6 +739,7 @@ public class CoreModule {
         this.osOverview.setVnfci_ips(vnfci_ip_map);
         this.osOverview.setIp_names(ip_name_map);
         this.osOverview.setIp_addresses(ip_addresses_map);
+        this.osOverview.setVnfci_vims(vnfci_vim_map);
 
         // TODO : Switch to threads to collect information of the infrastructure ( should become way faster )
         for (Integer i : node_map.keySet()) {
@@ -752,18 +762,34 @@ public class CoreModule {
             }
           }
           port_ip_map = tmp_portMap;
+          // Collect information about the compute nodes...
+          for (Server s : tmp_os.compute().servers().list()) {
+            for (String vnfci_id : vnfci_name_map.keySet()) {
+              if (vnfci_name_map.get(vnfci_id).equals(s.getName())) {
+                //vnf_host_compute_map.put(vnfr.getName(), s.getHypervisorHostname());
+                vnfci_hypervisor_map.put(s.getName(), s.getHypervisorHostname());
+              }
+            }
+          }
         }
         // TODO : collect information about the os networks, to be able to integrate with the Open Baton view on resources
         for (Integer i : port_id_map.keySet()) {
           OSClient tmp_os = os_client_map.get(i);
           for (String p_id : ((ArrayList<String>) port_id_map.get(i))) {
+            // TODO : avoid contacting the infrastructure to often, maybe there is a better way of collecting all information in before
             port_net_map.put(p_id, tmp_os.networking().port().get(p_id).getNetworkId());
           }
+          //for(Network n : tmp_os.networking().network().list()){
+          //  net_name_map.put(n.getId(),n.getId());
+          //}
         }
+        // Well we should collect the network names together with their id's
 
         this.osOverview.setOs_port_ids(port_id_map);
         this.osOverview.setOs_port_ips(port_ip_map);
         this.osOverview.setOs_port_net_map(port_net_map);
+        this.osOverview.setOs_net_names(net_name_map);
+        this.osOverview.setVnfci_hypervisors(vnfci_hypervisor_map);
 
         // In the very end add the hosts and hypervisors which did not belong to any NSR
         //this.osOverview.setNodes(complete_computeNodeMap);
@@ -777,11 +803,11 @@ public class CoreModule {
     }
   }
 
-  //@CrossOrigin(origins = "*")
-  //@RequestMapping("/overview")
-  //public OpenStackOverview getOverview(
-  //    @RequestParam(value = "name", defaultValue = "World") String name) {
-  //  updateOpenStackOverview();
-  //  return this.osOverview;
-  //}
+  @CrossOrigin(origins = "*")
+  @RequestMapping("/overview")
+  public OpenStackOverview getOverview(
+      @RequestParam(value = "name", defaultValue = "World") String name) {
+    updateOpenStackOverview();
+    return this.osOverview;
+  }
 }
