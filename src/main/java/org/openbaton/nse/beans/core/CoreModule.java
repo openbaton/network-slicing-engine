@@ -550,7 +550,10 @@ public class CoreModule {
     // A list of ips which have to be checked for ports + subnets + nets ( listed by internal hash..)
     HashMap<Integer, Object> ips_to_be_checked = new HashMap<Integer, Object>();
     // A simple map which saves the reference to the osclients for specific nodes
-    HashMap<Integer, OSClient> os_client_map = new HashMap<Integer, OSClient>();
+    // HashMap<Integer, OSClient> os_client_map = new HashMap<Integer, OSClient>();
+    // A simple map which saves the reference to the osclients ( via a vim instaces )
+    HashMap<Integer, VimInstance> os_vim_map = new HashMap<Integer, VimInstance>();
+
     // Set up a map containing the OpenStack port ids listed with their parent network id
     HashMap<String, String> port_net_map = new HashMap<String, String>();
     // Set up a map containing the OpenStack network ids listed with their names
@@ -694,8 +697,11 @@ public class CoreModule {
 
                     if (tmp_vim.getType().equals("openstack")) {
                       OSClient tmp_os = getOSClient(tmp_vim);
-                      if (!os_client_map.containsKey(vim_identifier)) {
-                        os_client_map.put(vim_identifier, tmp_os);
+                      //if (!os_client_map.containsKey(vim_identifier)) {
+                      //  os_client_map.put(vim_identifier, tmp_os);
+                      //}
+                      if (!os_vim_map.containsKey(vim_identifier)) {
+                        os_vim_map.put(vim_identifier, tmp_vim);
                       }
                       Map<String, String> tmp_computeNodeMap = getComputeNodeMap(tmp_os);
                       if (tmp_computeNodeMap != null) {
@@ -720,82 +726,81 @@ public class CoreModule {
             }
           }
         }
-
-        this.osOverview.setVims(vim_map);
-        this.osOverview.setVim_names(vim_name_map);
-        this.osOverview.setVim_types(vim_type_map);
-        this.osOverview.setOs_nodes(node_map);
-        this.osOverview.setProjects(project_id_map);
-        this.osOverview.setNsrs(project_nsr_map);
-        this.osOverview.setNsr_names(nsr_name_map);
-        this.osOverview.setNsr_vnfs(nsr_vnf_map);
-        this.osOverview.setVnf_vlrs(vnf_vlr_map);
-        this.osOverview.setVlr_names(vlr_name_map);
-        this.osOverview.setVlr_qualities(vlr_quality_map);
-        this.osOverview.setVnf_vdus(vnf_vdu_map);
-        this.osOverview.setVdu_names(vdu_name_map);
-        this.osOverview.setVdu_vnfcis(vdu_vnfci_map);
-        this.osOverview.setVnfci_names(vnfci_name_map);
-        this.osOverview.setVnfci_ips(vnfci_ip_map);
-        this.osOverview.setIp_names(ip_name_map);
-        this.osOverview.setIp_addresses(ip_addresses_map);
-        this.osOverview.setVnfci_vims(vnfci_vim_map);
-
-        // TODO : Switch to threads to collect information of the infrastructure ( should become way faster )
-        for (Integer i : node_map.keySet()) {
-          OSClient tmp_os = os_client_map.get(i);
-          HashMap<String, Object> tmp_portMap =
-              getPortIps(tmp_os, (ArrayList<String>) ips_to_be_checked.get(i));
-          if (tmp_portMap != null) {
-            for (String p_id : tmp_portMap.keySet()) {
-              ArrayList<String> tmp_port_ids;
-              if (port_id_map.containsKey(i)) {
-                tmp_port_ids = ((ArrayList<String>) port_id_map.get(i));
-                if (!tmp_port_ids.contains(p_id)) {
-                  tmp_port_ids.add(p_id);
-                }
-              } else {
-                tmp_port_ids = new ArrayList<String>();
-                tmp_port_ids.add(p_id);
-                port_id_map.put(i, tmp_port_ids);
-              }
-            }
-          }
-          port_ip_map = tmp_portMap;
-          // Collect information about the compute nodes...
-          for (Server s : tmp_os.compute().servers().list()) {
-            for (String vnfci_id : vnfci_name_map.keySet()) {
-              if (vnfci_name_map.get(vnfci_id).equals(s.getName())) {
-                //vnf_host_compute_map.put(vnfr.getName(), s.getHypervisorHostname());
-                vnfci_hypervisor_map.put(s.getName(), s.getHypervisorHostname());
-              }
-            }
-          }
-        }
-        // TODO : collect information about the os networks, to be able to integrate with the Open Baton view on resources
-        for (Integer i : port_id_map.keySet()) {
-          OSClient tmp_os = os_client_map.get(i);
-          for (String p_id : ((ArrayList<String>) port_id_map.get(i))) {
-            // TODO : avoid contacting the infrastructure to often, maybe there is a better way of collecting all information in before
-            port_net_map.put(p_id, tmp_os.networking().port().get(p_id).getNetworkId());
-          }
-          //for(Network n : tmp_os.networking().network().list()){
-          //  net_name_map.put(n.getId(),n.getId());
-          //}
-        }
-        // Well we should collect the network names together with their id's
-
-        this.osOverview.setOs_port_ids(port_id_map);
-        this.osOverview.setOs_port_ips(port_ip_map);
-        this.osOverview.setOs_port_net_map(port_net_map);
-        this.osOverview.setOs_net_names(net_name_map);
-        this.osOverview.setVnfci_hypervisors(vnfci_hypervisor_map);
-
-        // In the very end add the hosts and hypervisors which did not belong to any NSR
-        //this.osOverview.setNodes(complete_computeNodeMap);
-        //this.osOverview.setProjects(project_nsr_map);
-        //logger.debug("updated overview");
       }
+      this.osOverview.setVims(vim_map);
+      this.osOverview.setVim_names(vim_name_map);
+      this.osOverview.setVim_types(vim_type_map);
+      this.osOverview.setOs_nodes(node_map);
+      this.osOverview.setProjects(project_id_map);
+      this.osOverview.setNsrs(project_nsr_map);
+      this.osOverview.setNsr_names(nsr_name_map);
+      this.osOverview.setNsr_vnfs(nsr_vnf_map);
+      this.osOverview.setVnf_vlrs(vnf_vlr_map);
+      this.osOverview.setVlr_names(vlr_name_map);
+      this.osOverview.setVlr_qualities(vlr_quality_map);
+      this.osOverview.setVnf_vdus(vnf_vdu_map);
+      this.osOverview.setVdu_names(vdu_name_map);
+      this.osOverview.setVdu_vnfcis(vdu_vnfci_map);
+      this.osOverview.setVnfci_names(vnfci_name_map);
+      this.osOverview.setVnfci_ips(vnfci_ip_map);
+      this.osOverview.setIp_names(ip_name_map);
+      this.osOverview.setIp_addresses(ip_addresses_map);
+      this.osOverview.setVnfci_vims(vnfci_vim_map);
+
+      // TODO : Switch to threads to collect information of the infrastructure ( should become way faster )
+      for (Integer i : node_map.keySet()) {
+        OSClient os_client = getOSClient(os_vim_map.get(i));
+        HashMap<String, Object> tmp_portMap =
+            getPortIps(os_client, (ArrayList<String>) ips_to_be_checked.get(i));
+        if (tmp_portMap != null) {
+          for (String p_id : tmp_portMap.keySet()) {
+            ArrayList<String> tmp_port_ids;
+            if (port_id_map.containsKey(i)) {
+              tmp_port_ids = ((ArrayList<String>) port_id_map.get(i));
+              if (!tmp_port_ids.contains(p_id)) {
+                tmp_port_ids.add(p_id);
+              }
+            } else {
+              tmp_port_ids = new ArrayList<String>();
+              tmp_port_ids.add(p_id);
+              port_id_map.put(i, tmp_port_ids);
+            }
+          }
+        }
+        port_ip_map = tmp_portMap;
+        // Collect information about the compute nodes...
+        for (Server s : os_client.compute().servers().list()) {
+          for (String vnfci_id : vnfci_name_map.keySet()) {
+            if (vnfci_name_map.get(vnfci_id).equals(s.getName())) {
+              //vnf_host_compute_map.put(vnfr.getName(), s.getHypervisorHostname());
+              vnfci_hypervisor_map.put(s.getName(), s.getHypervisorHostname());
+            }
+          }
+        }
+      }
+      // TODO : collect information about the os networks, to be able to integrate with the Open Baton view on resources
+      for (Integer i : port_id_map.keySet()) {
+        OSClient os_client = getOSClient(os_vim_map.get(i));
+        for (String p_id : ((ArrayList<String>) port_id_map.get(i))) {
+          // TODO : avoid contacting the infrastructure to often, maybe there is a better way of collecting all information in before
+          port_net_map.put(p_id, os_client.networking().port().get(p_id).getNetworkId());
+        }
+        //for(Network n : tmp_os.networking().network().list()){
+        //  net_name_map.put(n.getId(),n.getId());
+        //}
+      }
+      // Well we should collect the network names together with their id's
+
+      this.osOverview.setOs_port_ids(port_id_map);
+      this.osOverview.setOs_port_ips(port_ip_map);
+      this.osOverview.setOs_port_net_map(port_net_map);
+      this.osOverview.setOs_net_names(net_name_map);
+      this.osOverview.setVnfci_hypervisors(vnfci_hypervisor_map);
+
+      // In the very end add the hosts and hypervisors which did not belong to any NSR
+      //this.osOverview.setNodes(complete_computeNodeMap);
+      //this.osOverview.setProjects(project_nsr_map);
+      //logger.debug("updated overview");
     } catch (SDKException e) {
       logger.error("Problem instantiating NFVORequestor with project id null");
     } catch (FileNotFoundException e) {
@@ -803,11 +808,11 @@ public class CoreModule {
     }
   }
 
-  @CrossOrigin(origins = "*")
-  @RequestMapping("/overview")
-  public OpenStackOverview getOverview(
-      @RequestParam(value = "name", defaultValue = "World") String name) {
-    updateOpenStackOverview();
-    return this.osOverview;
-  }
+  //@CrossOrigin(origins = "*")
+  //@RequestMapping("/overview")
+  //public OpenStackOverview getOverview(
+  //    @RequestParam(value = "name", defaultValue = "World") String name) {
+  //  updateOpenStackOverview();
+  //  return this.osOverview;
+  //}
 }
