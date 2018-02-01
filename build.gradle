@@ -81,6 +81,9 @@ dependencies {
     compile group: 'org.pacesys', name: 'openstack4j', version: '3.0.3'
 
     compile("org.springframework.boot:spring-boot-starter-web")
+
+    compile group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '1.5.10.RELEASE'
+
 }
 
 bootRepackage {

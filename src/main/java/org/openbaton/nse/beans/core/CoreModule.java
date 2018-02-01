@@ -808,11 +808,11 @@ public class CoreModule {
     }
   }
 
-  //@CrossOrigin(origins = "*")
-  //@RequestMapping("/overview")
-  //public OpenStackOverview getOverview(
-  //    @RequestParam(value = "name", defaultValue = "World") String name) {
-  //  updateOpenStackOverview();
-  //  return this.osOverview;
-  //}
+  @CrossOrigin(origins = "*")
+  @RequestMapping("/overview")
+  public OpenStackOverview getOverview(
+      @RequestParam(value = "name", defaultValue = "World") String name) {
+    updateOpenStackOverview();
+    return this.osOverview;
+  }
 }
