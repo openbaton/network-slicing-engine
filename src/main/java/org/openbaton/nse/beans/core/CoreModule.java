@@ -810,8 +810,7 @@ public class CoreModule {
 
   @CrossOrigin(origins = "*")
   @RequestMapping("/overview")
-  public OpenStackOverview getOverview(
-      @RequestParam(value = "name", defaultValue = "World") String name) {
+  public OpenStackOverview getOverview() {
     updateOpenStackOverview();
     return this.osOverview;
   }

@@ -10,6 +10,9 @@ import org.springframework.security.config.annotation.authentication.builders.Au
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 
+import org.springframework.web.cors.CorsUtils;
+
+
 @Configuration
 public class ApiSecurity extends WebSecurityConfigurerAdapter {
 
@@ -23,16 +26,13 @@ public class ApiSecurity extends WebSecurityConfigurerAdapter {
   }
 
   protected void configure(HttpSecurity http) throws Exception {
-    http.httpBasic()
+    http.authorizeRequests()
+        .requestMatchers(CorsUtils::isPreFlightRequest)
+        .permitAll()
+        .anyRequest()
+        .authenticated()
         .and()
-        .authorizeRequests()
-        .antMatchers("/**")
-        .hasRole("ADMIN")
-        .and()
-        .csrf()
-        .disable()
-        .headers()
-        .frameOptions()
-        .disable();
+        .httpBasic();
   }
+
 }
