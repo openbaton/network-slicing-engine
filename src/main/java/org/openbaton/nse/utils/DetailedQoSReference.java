@@ -24,15 +24,11 @@ package org.openbaton.nse.utils;
 public class DetailedQoSReference extends QoSReference {
 
   private String vim_id;
-  private String vnfr_name;
-
-  public String getVnfr_name() {
-    return vnfr_name;
-  }
-
-  public void setVnfr_name(String vnfr_name) {
-    this.vnfr_name = vnfr_name;
-  }
+  private String hostname;
+  private String vnfr_id;
+  private String vdu_id;
+  private String vnfci_id;
+  private String nsr_id;
 
   public String getVim_id() {
     return vim_id;
@@ -42,10 +38,62 @@ public class DetailedQoSReference extends QoSReference {
     this.vim_id = vim_id;
   }
 
-  public DetailedQoSReference(String ip, Quality quality, String vim_id, String vnfr_name) {
+  public String getHostname() {
+    return hostname;
+  }
+
+  public void setHostname(String hostname) {
+    this.hostname = hostname;
+  }
+
+  public String getVnfci_id() {
+    return vnfci_id;
+  }
+
+  public void setVnfci_id(String vnfci_id) {
+    this.vnfci_id = vnfci_id;
+  }
+
+  public String getVnfr_id() {
+    return vnfr_id;
+  }
+
+  public void setVnfr_id(String vnfr_id) {
+    this.vnfr_id = vnfr_id;
+  }
+
+  public String getVdu_id() {
+    return vdu_id;
+  }
+
+  public void setVdu_id(String vdu_id) {
+    this.vdu_id = vdu_id;
+  }
+
+  public String getNsr_id() {
+    return nsr_id;
+  }
+
+  public void setNsr_id(String nsr_id) {
+    this.nsr_id = nsr_id;
+  }
+
+  public DetailedQoSReference(
+      String ip,
+      Quality quality,
+      String vim_id,
+      String hostname,
+      String vnfr_id,
+      String vdu_id,
+      String vnfci_id,
+      String nsr_id) {
     super();
     this.vim_id = vim_id;
-    this.vnfr_name = vnfr_name;
+    this.hostname = hostname;
+    this.vnfr_id = vnfr_id;
+    this.vdu_id = vdu_id;
+    this.vnfci_id = vnfci_id;
+    this.nsr_id = nsr_id;
   }
 
   public DetailedQoSReference() {}
@@ -61,7 +109,35 @@ public class DetailedQoSReference extends QoSReference {
         + ", vim_id="
         + this.vim_id
         + ", vnfr_name="
-        + this.vnfr_name
+        + this.hostname
+        + ", vnfr_id="
+        + this.vnfr_id
+        + ", vdu_id="
+        + this.vdu_id
+        + ", vnfci_id="
+        + this.vnfci_id
+        + ", nsr_id="
+        + this.nsr_id
         + '}';
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (obj == null) {
+      if (obj.getClass().equals(this.getClass())) {
+        if (DetailedQoSReference.class.isAssignableFrom(obj.getClass())) {
+          DetailedQoSReference tmp = (DetailedQoSReference) obj;
+          if (((DetailedQoSReference) obj).getHostname().equals(this.getHostname())) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return this.getHostname().hashCode();
   }
 }

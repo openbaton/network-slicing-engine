@@ -28,6 +28,7 @@ import org.openbaton.catalogue.nfvo.VimInstance;
 import org.openbaton.catalogue.security.Project;
 import org.openbaton.nse.beans.adapters.openstack.NeutronQoSExecutor;
 import org.openbaton.nse.beans.adapters.openstack.NeutronQoSHandler;
+import org.openbaton.nse.utils.DetailedQoSReference;
 import org.openbaton.nse.utils.OpenStackOverview;
 import org.openbaton.nse.properties.NseProperties;
 import org.openbaton.nse.properties.NfvoProperties;
@@ -78,6 +79,8 @@ public class CoreModule {
   private final ScheduledExecutorService qtScheduler = Executors.newScheduledThreadPool(1);
   private NeutronQoSHandler neutron_handler = new NeutronQoSHandler();
 
+  private String curr_hash = UUID.randomUUID().toString();
+
   private OpenStackOverview osOverview = new OpenStackOverview();
 
   @Autowired private NfvoProperties nfvo_configuration;
@@ -86,6 +89,11 @@ public class CoreModule {
   @PostConstruct
   private void init() {
     this.logger = LoggerFactory.getLogger(this.getClass());
+  }
+
+  // Function to be called if there a NSR has been scaled, deleted or instantiated
+  public void notifyChange() {
+    curr_hash = UUID.randomUUID().toString();
   }
 
   /*
@@ -97,6 +105,7 @@ public class CoreModule {
    */
 
   public void addQos(Set<VirtualNetworkFunctionRecord> vnfrs, String nsrId) {
+    // Generate a new hash
     // Lets put the received vnfrs into a dictionary and the nsr ids into a queue
     // to avoid running multiple times the same tasks
     logger.debug("There are currently " + nsr_id_queue.size() + " NSRs in the processing queue");
@@ -493,6 +502,16 @@ public class CoreModule {
   }
 
   private void updateOpenStackOverview() {
+    // Check if the there were any addQos / removeQos tasks in the meanwhile ( relates to any scale, error or instantiate events )
+    // to avoid running unnecessary tasks if there were no changes at all...
+    if (this.osOverview != null) {
+      if (this.osOverview.getCurrent_hash() != null) {
+        if (this.osOverview.getCurrent_hash().equals(this.curr_hash)) {
+          return;
+        }
+      }
+    }
+
     this.osOverview = new OpenStackOverview();
     //ArrayList<Map<String, Object>> project_nsr_map = null;
     //ArrayList<Map<String, Object>> complete_computeNodeMap = new ArrayList<>();
@@ -518,21 +537,25 @@ public class CoreModule {
     // Set up a map containing all projects ids together with their names
     HashMap<String, String> nsr_name_map = new HashMap<String, String>();
     // Set up a map containing all projects together with a list of nsr ids
-    HashMap<String, Object> nsr_vnf_map = new HashMap<String, Object>();
+    HashMap<String, Object> nsr_vnfr_map = new HashMap<String, Object>();
+    // Set up a map containing all vnf names with their ids
+    HashMap<String, String> vnfr_name_map = new HashMap<String, String>();
     // Set up a map containing the vnfs and their networks from Open Baton side ( virtual link records )
-    HashMap<String, Object> vnf_vlr_map = new HashMap<String, Object>();
+    HashMap<String, Object> vnfr_vlr_map = new HashMap<String, Object>();
     // Set up a map containing all vlr ids together with their names
     HashMap<String, String> vlr_name_map = new HashMap<String, String>();
     // Set up a map containing all vlr ids together with their assigned bandwidth qualities
     HashMap<String, String> vlr_quality_map = new HashMap<String, String>();
     // Set up a map containing all vnfs and their vdus
-    HashMap<String, Object> vnf_vdu_map = new HashMap<String, Object>();
+    HashMap<String, Object> vnfr_vdu_map = new HashMap<String, Object>();
     // Set up a a map containing the names of each vdu listed by their ids
     HashMap<String, String> vdu_name_map = new HashMap<String, String>();
     // Set up a map containing the vdu and their vnfcis
     HashMap<String, Object> vdu_vnfci_map = new HashMap<String, Object>();
     // Set up a map containing the vnfci names with their ids ( These are the host names in the end )
     HashMap<String, String> vnfci_name_map = new HashMap<String, String>();
+    // Set up a map containing all vnfci hostnames with their related vnf id
+    HashMap<String, String> vnfci_vnfr_map = new HashMap<String, String>();
     // Set up a map containing the ips of each vnfci
     HashMap<String, Object> vnfci_ip_map = new HashMap<String, Object>();
     // Set up a map containing the names of the networks for each ip
@@ -603,24 +626,25 @@ public class CoreModule {
               project_nsr_map.put(project.getId(), tmp_nsrs);
             }
             for (VirtualNetworkFunctionRecord vnfr : nsr.getVnfr()) {
+              vnfr_name_map.put(vnfr.getId(), vnfr.getName());
               ArrayList<String> tmp_vnfs;
-              if (nsr_vnf_map.containsKey(nsr.getId())) {
-                tmp_vnfs = ((ArrayList<String>) nsr_vnf_map.get(nsr.getId()));
+              if (nsr_vnfr_map.containsKey(nsr.getId())) {
+                tmp_vnfs = ((ArrayList<String>) nsr_vnfr_map.get(nsr.getId()));
                 tmp_vnfs.add(vnfr.getId());
               } else {
                 tmp_vnfs = new ArrayList<String>();
                 tmp_vnfs.add(vnfr.getId());
-                nsr_vnf_map.put(nsr.getId(), tmp_vnfs);
+                nsr_vnfr_map.put(nsr.getId(), tmp_vnfs);
               }
               for (InternalVirtualLink vlr : vnfr.getVirtual_link()) {
                 ArrayList<String> tmp_vlrs;
-                if (vnf_vlr_map.containsKey(vnfr.getId())) {
-                  tmp_vlrs = ((ArrayList<String>) vnf_vlr_map.get(vnfr.getId()));
+                if (vnfr_vlr_map.containsKey(vnfr.getId())) {
+                  tmp_vlrs = ((ArrayList<String>) vnfr_vlr_map.get(vnfr.getId()));
                   tmp_vlrs.add(vlr.getId());
                 } else {
                   tmp_vlrs = new ArrayList<String>();
                   tmp_vlrs.add(vlr.getId());
-                  vnf_vlr_map.put(vnfr.getId(), tmp_vlrs);
+                  vnfr_vlr_map.put(vnfr.getId(), tmp_vlrs);
                 }
                 vlr_name_map.put(vlr.getId(), vlr.getName());
                 for (String qosParam : vlr.getQos()) {
@@ -633,17 +657,18 @@ public class CoreModule {
               }
               for (VirtualDeploymentUnit vdu : vnfr.getVdu()) {
                 ArrayList<String> tmp_vdus;
-                if (vnf_vdu_map.containsKey(vnfr.getId())) {
-                  tmp_vdus = ((ArrayList<String>) vnf_vdu_map.get(vnfr.getId()));
+                if (vnfr_vdu_map.containsKey(vnfr.getId())) {
+                  tmp_vdus = ((ArrayList<String>) vnfr_vdu_map.get(vnfr.getId()));
                   tmp_vdus.add(vdu.getId());
                 } else {
                   tmp_vdus = new ArrayList<String>();
                   tmp_vdus.add(vdu.getId());
-                  vnf_vdu_map.put(vnfr.getId(), tmp_vdus);
+                  vnfr_vdu_map.put(vnfr.getId(), tmp_vdus);
                 }
                 vdu_name_map.put(vdu.getId(), vdu.getName());
                 for (VNFCInstance vnfci : vdu.getVnfc_instance()) {
                   vnfci_name_map.put(vnfci.getId(), vnfci.getHostname());
+                  vnfci_vnfr_map.put(vnfci.getHostname(), vnfr.getId());
                   ArrayList<String> tmp_vnfcis;
                   if (vdu_vnfci_map.containsKey(vdu.getId())) {
                     tmp_vnfcis = ((ArrayList<String>) vdu_vnfci_map.get(vdu.getId()));
@@ -727,6 +752,7 @@ public class CoreModule {
           }
         }
       }
+      this.osOverview.setCurrent_hash(new String(this.curr_hash));
       this.osOverview.setVims(vim_map);
       this.osOverview.setVim_names(vim_name_map);
       this.osOverview.setVim_types(vim_type_map);
@@ -734,14 +760,16 @@ public class CoreModule {
       this.osOverview.setProjects(project_id_map);
       this.osOverview.setNsrs(project_nsr_map);
       this.osOverview.setNsr_names(nsr_name_map);
-      this.osOverview.setNsr_vnfs(nsr_vnf_map);
-      this.osOverview.setVnf_vlrs(vnf_vlr_map);
+      this.osOverview.setVnfr_names(vnfr_name_map);
+      this.osOverview.setNsr_vnfrs(nsr_vnfr_map);
+      this.osOverview.setVnfr_vlrs(vnfr_vlr_map);
       this.osOverview.setVlr_names(vlr_name_map);
       this.osOverview.setVlr_qualities(vlr_quality_map);
-      this.osOverview.setVnf_vdus(vnf_vdu_map);
+      this.osOverview.setVnfr_vdus(vnfr_vdu_map);
       this.osOverview.setVdu_names(vdu_name_map);
       this.osOverview.setVdu_vnfcis(vdu_vnfci_map);
       this.osOverview.setVnfci_names(vnfci_name_map);
+      this.osOverview.setVnfci_vnfr(vnfci_vnfr_map);
       this.osOverview.setVnfci_ips(vnfci_ip_map);
       this.osOverview.setIp_names(ip_name_map);
       this.osOverview.setIp_addresses(ip_addresses_map);
@@ -813,5 +841,17 @@ public class CoreModule {
   public OpenStackOverview getOverview() {
     updateOpenStackOverview();
     return this.osOverview;
+  }
+
+  // Method to be called by the NSE-GUI to apply bandwidth limitations directly
+  @CrossOrigin(origins = "*")
+  @RequestMapping("/limit")
+  public void limit(
+      @RequestParam(value = "vim", defaultValue = "vim_id") String vim,
+      @RequestParam(value = "port", defaultValue = "port_id") String port,
+      @RequestParam(value = "quality", defaultValue = "quality") String qual) {
+    logger.debug("VIM : " + vim);
+    logger.debug("Port : " + port);
+    logger.debug("Quality : " + qual);
   }
 }

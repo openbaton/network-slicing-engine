@@ -12,7 +12,6 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
 
 import org.springframework.web.cors.CorsUtils;
 
-
 @Configuration
 public class ApiSecurity extends WebSecurityConfigurerAdapter {
 
@@ -34,5 +33,4 @@ public class ApiSecurity extends WebSecurityConfigurerAdapter {
         .and()
         .httpBasic();
   }
-
 }

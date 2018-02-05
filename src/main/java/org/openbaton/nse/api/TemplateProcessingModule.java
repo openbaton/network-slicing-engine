@@ -143,12 +143,14 @@ public class TemplateProcessingModule implements CommandLineRunner {
             if (qosAttr.contains("maximum_bandwidth")) {
               //logger.debug(nsr.getVnfr().toString());
               core.addQos(nsr.getVnfr(), nsr.getId());
+              core.notifyChange();
               return;
             }
           }
         }
       }
     }
+    core.notifyChange();
   }
 
   public void deleteConfiguration(String message) {
@@ -174,7 +176,7 @@ public class TemplateProcessingModule implements CommandLineRunner {
             + new Date().getTime());
     //logger.debug("ACTION: " + action + " PAYLOAD " + nsr.toString());
     // Neutron handles removing ports with the allocated QoS itself
-
+    core.notifyChange();
   }
 
   public void scaleConfiguration(String message) {
@@ -210,6 +212,7 @@ public class TemplateProcessingModule implements CommandLineRunner {
         }
       }
     }
+    core.notifyChange();
   }
 
   @PreDestroy

@@ -12,6 +12,8 @@ import java.util.Map;
  */
 public class OpenStackOverview {
 
+  private String current_hash;
+
   private Map<Integer, Object> vims;
 
   private Map<String, String> vim_names;
@@ -26,21 +28,25 @@ public class OpenStackOverview {
 
   private Map<String, String> nsr_names;
 
-  private Map<String, Object> nsr_vnfs;
+  private Map<String, Object> nsr_vnfrs;
 
-  private Map<String, Object> vnf_vlrs;
+  private Map<String, String> vnfr_names;
+
+  private Map<String, Object> vnfr_vlrs;
 
   private Map<String, String> vlr_names;
 
   private Map<String, String> vlr_qualities;
 
-  private Map<String, Object> vnf_vdus;
+  private Map<String, Object> vnfr_vdus;
 
   private Map<String, String> vdu_names;
 
   private Map<String, Object> vdu_vnfcis;
 
   private Map<String, String> vnfci_names;
+
+  private Map<String, String> vnfci_vnfr;
 
   private Map<String, Object> vnfci_ips;
 
@@ -59,6 +65,14 @@ public class OpenStackOverview {
   private Map<String, String> os_net_names;
 
   private Map<String, String> vnfci_hypervisors;
+
+  public String getCurrent_hash() {
+    return current_hash;
+  }
+
+  public void setCurrent_hash(String current_hash) {
+    this.current_hash = current_hash;
+  }
 
   public void setVims(Map<Integer, Object> vims) {
     this.vims = vims;
@@ -88,12 +102,16 @@ public class OpenStackOverview {
     this.nsr_names = nsr_names;
   }
 
-  public void setNsr_vnfs(Map<String, Object> nsr_vnfs) {
-    this.nsr_vnfs = nsr_vnfs;
+  public void setNsr_vnfrs(Map<String, Object> nsr_vnfrs) {
+    this.nsr_vnfrs = nsr_vnfrs;
   }
 
-  public void setVnf_vlrs(Map<String, Object> vnf_vlrs) {
-    this.vnf_vlrs = vnf_vlrs;
+  public void setVnfr_names(Map<String, String> vnfr_names) {
+    this.vnfr_names = vnfr_names;
+  }
+
+  public void setVnfr_vlrs(Map<String, Object> vnfr_vlrs) {
+    this.vnfr_vlrs = vnfr_vlrs;
   }
 
   public void setVlr_names(Map<String, String> vlr_names) {
@@ -104,8 +122,8 @@ public class OpenStackOverview {
     this.vlr_qualities = vlr_qualities;
   }
 
-  public void setVnf_vdus(Map<String, Object> vnf_vdus) {
-    this.vnf_vdus = vnf_vdus;
+  public void setVnfr_vdus(Map<String, Object> vnfr_vdus) {
+    this.vnfr_vdus = vnfr_vdus;
   }
 
   public void setVdu_names(Map<String, String> vdu_names) {
@@ -118,6 +136,10 @@ public class OpenStackOverview {
 
   public void setVnfci_names(Map<String, String> vnfci_names) {
     this.vnfci_names = vnfci_names;
+  }
+
+  public void setVnfci_vnfr(Map<String, String> vnfci_vnfr) {
+    this.vnfci_vnfr = vnfci_vnfr;
   }
 
   public void setVnfci_ips(Map<String, Object> vnfci_ips) {
@@ -157,6 +179,7 @@ public class OpenStackOverview {
   }
 
   public OpenStackOverview() {
+    //this.current_hash = null;
     this.vims = new HashMap<Integer, Object>();
     this.vim_names = new HashMap<String, String>();
     this.vim_types = new HashMap<String, String>();
@@ -164,14 +187,16 @@ public class OpenStackOverview {
     this.projects = new HashMap<String, String>();
     this.nsrs = new HashMap<String, Object>();
     this.nsr_names = new HashMap<String, String>();
-    this.nsr_vnfs = new HashMap<String, Object>();
-    this.vnf_vlrs = new HashMap<String, Object>();
+    this.vnfr_names = new HashMap<String, String>();
+    this.nsr_vnfrs = new HashMap<String, Object>();
+    this.vnfr_vlrs = new HashMap<String, Object>();
     this.vlr_names = new HashMap<String, String>();
     this.vlr_qualities = new HashMap<String, String>();
-    this.vnf_vdus = new HashMap<String, Object>();
+    this.vnfr_vdus = new HashMap<String, Object>();
     this.vdu_names = new HashMap<String, String>();
     this.vdu_vnfcis = new HashMap<String, Object>();
     this.vnfci_names = new HashMap<String, String>();
+    this.vnfci_vnfr = new HashMap<String, String>();
     this.vnfci_ips = new HashMap<String, Object>();
     this.ip_names = new HashMap<String, String>();
     this.ip_addresses = new HashMap<String, String>();

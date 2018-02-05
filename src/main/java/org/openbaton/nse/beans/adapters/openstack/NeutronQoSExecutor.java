@@ -110,11 +110,11 @@ public class NeutronQoSExecutor implements Runnable {
     logger.debug(delimiter_line);
     for (VirtualNetworkFunctionRecord vnfr : vnfrs) {
       for (DetailedQoSReference r : qoses) {
-        if (vnfr.getName().equals(r.getVnfr_name())) {
+        if (vnfr.getName().equals(r.getHostname())) {
           try {
             logger.debug(
-                "    #"
-                    + r.getVnfr_name()
+                "    # "
+                    + r.getHostname()
                     + " -> "
                     + r.getIp()
                     + " -> "
@@ -132,9 +132,9 @@ public class NeutronQoSExecutor implements Runnable {
           }
         }
       }
-      logger.debug("    " + delimiter_line);
+      logger.debug("  " + delimiter_line);
       for (DetailedQoSReference r : qoses) {
-        if (vnfr.getName().equals(r.getVnfr_name())) {
+        if (vnfr.getName().equals(r.getHostname())) {
           logger.debug("    Setting " + r.getIp() + " bandwidth quality to " + r.getQuality());
           Map<String, String> qos_map = getNeutronQoSPolicies(neutron_handler, creds, token);
           if (qos_map == null) {
@@ -434,7 +434,11 @@ public class NeutronQoSExecutor implements Runnable {
                       ref.setQuality(netQualities.get(net));
                       ref.setVim_id(vnfci.getVim_id());
                       ref.setIp(ip.getIp());
-                      ref.setVnfr_name(vnfr.getName());
+                      ref.setHostname(vnfr.getName());
+                      ref.setVnfr_id(vnfr.getId());
+                      ref.setVdu_id(vdu.getId());
+                      ref.setVnfci_id(vnfci.getId());
+                      ref.setNsr_id(vnfr.getParent_ns_id());
                       //logger.debug("    Adding " + ref.toString());
                       res.add(ref);
                     }
