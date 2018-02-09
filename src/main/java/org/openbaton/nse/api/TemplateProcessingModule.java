@@ -208,6 +208,8 @@ public class TemplateProcessingModule implements CommandLineRunner {
             core.addQos(
                 new HashSet<VirtualNetworkFunctionRecord>(Arrays.asList(vnfr)),
                 vnfr.getParent_ns_id());
+            core.notifyChange();
+            return;
           }
         }
       }

@@ -20,6 +20,7 @@ package org.openbaton.nse.beans.core;
 
 import org.openbaton.catalogue.mano.common.Ip;
 import org.openbaton.catalogue.mano.descriptor.InternalVirtualLink;
+import org.openbaton.catalogue.mano.descriptor.VNFComponent;
 import org.openbaton.catalogue.mano.descriptor.VirtualDeploymentUnit;
 import org.openbaton.catalogue.mano.record.NetworkServiceRecord;
 import org.openbaton.catalogue.mano.record.VNFCInstance;
@@ -81,6 +82,8 @@ public class CoreModule {
 
   private String curr_hash = UUID.randomUUID().toString();
 
+  private ArrayList<VirtualNetworkFunctionRecord> vnfr_list =
+      new ArrayList<VirtualNetworkFunctionRecord>();
   private OpenStackOverview osOverview = new OpenStackOverview();
 
   @Autowired private NfvoProperties nfvo_configuration;
@@ -127,6 +130,15 @@ public class CoreModule {
       // Check the set of vnfrs attached to the specific nsr...
       Set<VirtualNetworkFunctionRecord> curr_vnfrs = nsr_vnfrs_map.get(tmp_nsr_id);
       for (VirtualNetworkFunctionRecord vnfr : curr_vnfrs) {
+        // Remove all occurences matching the old id
+        for (int x = 0; x < vnfr_list.size(); x++) {
+          VirtualNetworkFunctionRecord int_vnfr = vnfr_list.get(x);
+          if (int_vnfr.getId().equals(vnfr.getId())) {
+            vnfr_list.remove(int_vnfr);
+          }
+        }
+        vnfr_list.add(vnfr);
+
         // First step is now to sort the VNFRs according to their vim
         try {
           // TODO : instead of false check for enabled SSL
@@ -626,6 +638,14 @@ public class CoreModule {
               project_nsr_map.put(project.getId(), tmp_nsrs);
             }
             for (VirtualNetworkFunctionRecord vnfr : nsr.getVnfr()) {
+              // Remove all occurences matching the old id
+              for (int x = 0; x < vnfr_list.size(); x++) {
+                VirtualNetworkFunctionRecord int_vnfr = vnfr_list.get(x);
+                if (int_vnfr.getId().equals(vnfr.getId())) {
+                  vnfr_list.remove(int_vnfr);
+                }
+              }
+              vnfr_list.add(vnfr);
               vnfr_name_map.put(vnfr.getId(), vnfr.getName());
               ArrayList<String> tmp_vnfs;
               if (nsr_vnfr_map.containsKey(nsr.getId())) {
@@ -825,12 +845,14 @@ public class CoreModule {
       this.osOverview.setOs_net_names(net_name_map);
       this.osOverview.setVnfci_hypervisors(vnfci_hypervisor_map);
 
+      //logger.debug(vnfr_list.toString());
+
       // In the very end add the hosts and hypervisors which did not belong to any NSR
       //this.osOverview.setNodes(complete_computeNodeMap);
       //this.osOverview.setProjects(project_nsr_map);
       //logger.debug("updated overview");
     } catch (SDKException e) {
-      logger.error("Problem instantiating NFVORequestor with project id null");
+      logger.error("Problem instantiating NFVORequestor");
     } catch (FileNotFoundException e) {
       e.printStackTrace();
     }
@@ -853,5 +875,109 @@ public class CoreModule {
     logger.debug("VIM : " + vim);
     logger.debug("Port : " + port);
     logger.debug("Quality : " + qual);
+  }
+
+  // Method to be called by the NSE-GUI to scale out
+  @CrossOrigin(origins = "*")
+  @RequestMapping("/scale-out")
+  public void scaleOut(
+      @RequestParam(value = "project", defaultValue = "project_id") String project_id,
+      @RequestParam(value = "vnfr", defaultValue = "vnfr_id") String vnfr_id) {
+    logger.debug(
+        "Received SCALE out operation for vnfr " + vnfr_id + " belonging to project " + project_id);
+    try {
+      NFVORequestor nfvoRequestor =
+          new NFVORequestor(
+              "nse",
+              project_id,
+              nfvo_configuration.getIp(),
+              nfvo_configuration.getPort(),
+              "1",
+              false,
+              nse_configuration.getService().getKey());
+      for (VirtualNetworkFunctionRecord vnfr : vnfr_list) {
+        if (vnfr.getId().equals(vnfr_id)) {
+          boolean scaled = false;
+          for (VirtualDeploymentUnit vdu : vnfr.getVdu()) {
+            if (scaled == true) break;
+            if (vdu.getVnfc_instance().size() < vdu.getScale_in_out()
+                && (vdu.getVnfc().iterator().hasNext())) {
+              VNFComponent vnfComponent = vdu.getVnfc().iterator().next();
+              nfvoRequestor
+                  .getNetworkServiceRecordAgent()
+                  .createVNFCInstance(
+                      vnfr.getParent_ns_id(),
+                      vnfr.getId(),
+                      vnfComponent,
+                      new ArrayList<String>(vdu.getVimInstanceName()));
+              scaled = true;
+            }
+          }
+          return;
+        }
+      }
+    } catch (SDKException e) {
+      logger.error("Problem instantiating NFVORequestor");
+    } catch (FileNotFoundException e) {
+      logger.error("Problem scaling");
+    }
+  }
+
+  // Method to be called by the NSE-GUI to scale in
+  @CrossOrigin(origins = "*")
+  @RequestMapping("/scale-in")
+  public void scaleIn(
+      @RequestParam(value = "project", defaultValue = "project_id") String project_id,
+      @RequestParam(value = "vnfr", defaultValue = "vnfr_id") String vnfr_id) {
+    logger.debug(
+        "Received SCALE in operation for vnfr " + vnfr_id + " belonging to project " + project_id);
+    try {
+      NFVORequestor nfvoRequestor =
+          new NFVORequestor(
+              "nse",
+              project_id,
+              nfvo_configuration.getIp(),
+              nfvo_configuration.getPort(),
+              "1",
+              false,
+              nse_configuration.getService().getKey());
+      for (VirtualNetworkFunctionRecord vnfr : vnfr_list) {
+        if (vnfr.getId().equals(vnfr_id)) {
+          boolean scaled = false;
+          for (VirtualDeploymentUnit vdu : vnfr.getVdu()) {
+            if (scaled == true) break;
+            Set<VNFCInstance> vnfcInstancesToRemove = new HashSet<>();
+            for (VNFCInstance vnfcInstance : vdu.getVnfc_instance()) {
+              if (vnfcInstance.getState() == null
+                  || vnfcInstance.getState().toLowerCase().equals("active")) {
+                vnfcInstancesToRemove.add(vnfcInstance);
+              }
+            }
+            logger.debug(vnfcInstancesToRemove.toString());
+            if (vnfcInstancesToRemove.size() > 1 && vnfcInstancesToRemove.iterator().hasNext()) {
+              VNFCInstance vnfcInstance_remove = vnfcInstancesToRemove.iterator().next();
+              if (vnfcInstance_remove == null) {
+                logger.warn(
+                    "Not found VNFCInstance in VDU " + vdu.getId() + " that could be removed");
+                break;
+              }
+              nfvoRequestor
+                  .getNetworkServiceRecordAgent()
+                  .deleteVNFCInstance(
+                      vnfr.getParent_ns_id(),
+                      vnfr.getId(),
+                      vdu.getId(),
+                      vnfcInstance_remove.getId());
+              scaled = true;
+            }
+          }
+          return;
+        }
+      }
+    } catch (SDKException e) {
+      logger.error("Problem instantiating NFVORequestor");
+    } catch (FileNotFoundException e) {
+      logger.error("Problem scaling");
+    }
   }
 }

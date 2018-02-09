@@ -193,6 +193,7 @@ public class NeutronQoSExecutor implements Runnable {
           }
         }
       }
+      logger.debug(delimiter_line);
     }
   }
 
