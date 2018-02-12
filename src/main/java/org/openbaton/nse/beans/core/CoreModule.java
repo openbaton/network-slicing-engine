@@ -576,6 +576,8 @@ public class CoreModule {
     HashMap<String, String> ip_addresses_map = new HashMap<String, String>();
     // Set up a map containing the vnfci ids together with their vim ids..
     HashMap<String, Integer> vnfci_vim_map = new HashMap<String, Integer>();
+    // Set up a map containing the vdu id together with the maximum number of vnfc instances
+    HashMap<String, Integer> vdu_scale_map = new HashMap<String, Integer>();
 
     // ###### OpenStack related
     // Set up a map containing the OpenStack port ids listed to the internal hash of the vim
@@ -676,6 +678,7 @@ public class CoreModule {
                 }
               }
               for (VirtualDeploymentUnit vdu : vnfr.getVdu()) {
+                vdu_scale_map.put(vdu.getId(), vdu.getScale_in_out());
                 ArrayList<String> tmp_vdus;
                 if (vnfr_vdu_map.containsKey(vnfr.getId())) {
                   tmp_vdus = ((ArrayList<String>) vnfr_vdu_map.get(vnfr.getId()));
@@ -791,6 +794,7 @@ public class CoreModule {
       this.osOverview.setVnfci_names(vnfci_name_map);
       this.osOverview.setVnfci_vnfr(vnfci_vnfr_map);
       this.osOverview.setVnfci_ips(vnfci_ip_map);
+      this.osOverview.setVdu_scale(vdu_scale_map);
       this.osOverview.setIp_names(ip_name_map);
       this.osOverview.setIp_addresses(ip_addresses_map);
       this.osOverview.setVnfci_vims(vnfci_vim_map);
@@ -928,6 +932,7 @@ public class CoreModule {
   @RequestMapping("/scale-in")
   public void scaleIn(
       @RequestParam(value = "project", defaultValue = "project_id") String project_id,
+      @RequestParam(value = "vnfci", defaultValue = "vnfci_hostname") String vnfci_hostname,
       @RequestParam(value = "vnfr", defaultValue = "vnfr_id") String vnfr_id) {
     logger.debug(
         "Received SCALE in operation for vnfr " + vnfr_id + " belonging to project " + project_id);
@@ -953,9 +958,18 @@ public class CoreModule {
                 vnfcInstancesToRemove.add(vnfcInstance);
               }
             }
-            logger.debug(vnfcInstancesToRemove.toString());
             if (vnfcInstancesToRemove.size() > 1 && vnfcInstancesToRemove.iterator().hasNext()) {
-              VNFCInstance vnfcInstance_remove = vnfcInstancesToRemove.iterator().next();
+              // If no specific vnfci id to remove has been set use the default way and remove a random one..
+              VNFCInstance vnfcInstance_remove = null;
+              if (vnfci_hostname.equals("vnfci_hostname")) {
+                vnfcInstance_remove = vnfcInstancesToRemove.iterator().next();
+              } else {
+                for (VNFCInstance currVnfci : vnfcInstancesToRemove) {
+                  if (currVnfci.getHostname().equals(vnfci_hostname)) {
+                    vnfcInstance_remove = currVnfci;
+                  }
+                }
+              }
               if (vnfcInstance_remove == null) {
                 logger.warn(
                     "Not found VNFCInstance in VDU " + vdu.getId() + " that could be removed");
@@ -978,6 +992,10 @@ public class CoreModule {
       logger.error("Problem instantiating NFVORequestor");
     } catch (FileNotFoundException e) {
       logger.error("Problem scaling");
+    }
+    // Currently the NSE does not receive any SCALE-In events ( A VNF needs to have a relation to itself therefor ), thus we have a workaround here
+    finally {
+      notifyChange();
     }
   }
 }

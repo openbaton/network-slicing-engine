@@ -56,6 +56,8 @@ public class OpenStackOverview {
 
   private Map<String, Integer> vnfci_vims;
 
+  private Map<String, Integer> vdu_scale;
+
   private Map<Integer, Object> os_port_ids;
 
   private Map<String, Object> os_port_ips;
@@ -158,6 +160,10 @@ public class OpenStackOverview {
     this.vnfci_vims = vnfci_vims;
   }
 
+  public void setVdu_scale(Map<String, Integer> vdu_scale) {
+    this.vdu_scale = vdu_scale;
+  }
+
   public void setOs_port_ids(Map<Integer, Object> os_port_ids) {
     this.os_port_ids = os_port_ids;
   }
@@ -201,6 +207,7 @@ public class OpenStackOverview {
     this.ip_names = new HashMap<String, String>();
     this.ip_addresses = new HashMap<String, String>();
     this.vnfci_vims = new HashMap<String, Integer>();
+    this.vdu_scale = new HashMap<String, Integer>();
     this.os_port_ids = new HashMap<Integer, Object>();
     this.os_port_ips = new HashMap<String, Object>();
     this.os_port_net_map = new HashMap<String, String>();
