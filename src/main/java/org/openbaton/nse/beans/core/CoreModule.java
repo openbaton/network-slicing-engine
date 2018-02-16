@@ -18,6 +18,8 @@
 
 package org.openbaton.nse.beans.core;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.openbaton.catalogue.mano.common.Ip;
 import org.openbaton.catalogue.mano.descriptor.InternalVirtualLink;
 import org.openbaton.catalogue.mano.descriptor.VNFComponent;
@@ -33,6 +35,7 @@ import org.openbaton.nse.utils.DetailedQoSReference;
 import org.openbaton.nse.utils.OpenStackOverview;
 import org.openbaton.nse.properties.NseProperties;
 import org.openbaton.nse.properties.NfvoProperties;
+import org.openbaton.nse.utils.OpenStackQoSPolicy;
 import org.openbaton.nse.utils.Quality;
 import org.openbaton.sdk.NFVORequestor;
 import org.openbaton.sdk.api.exception.SDKException;
@@ -78,12 +81,16 @@ public class CoreModule {
       new HashMap<String, Set<VirtualNetworkFunctionRecord>>();
   private NFVORequestor requestor;
   private final ScheduledExecutorService qtScheduler = Executors.newScheduledThreadPool(1);
+
   private NeutronQoSHandler neutron_handler = new NeutronQoSHandler();
 
   private String curr_hash = UUID.randomUUID().toString();
 
   private ArrayList<VirtualNetworkFunctionRecord> vnfr_list =
       new ArrayList<VirtualNetworkFunctionRecord>();
+
+  private ArrayList<VimInstance> vim_list = new ArrayList<VimInstance>();
+
   private OpenStackOverview osOverview = new OpenStackOverview();
 
   @Autowired private NfvoProperties nfvo_configuration;
@@ -200,6 +207,17 @@ public class CoreModule {
             + " VIM(s)");
     for (String key : vim_vnfrs_map.keySet()) {
       VimInstance v = getVimInstance(requestor, key);
+      // Remove all occurences matching the old id
+      for (int x = 0; x < vim_list.size(); x++) {
+        VimInstance vim = vim_list.get(x);
+        if (vim.getId().equals(v.getId())) {
+          vim_list.remove(vim);
+        }
+      }
+      vim_list.add(v);
+      //if (!vim_list.contains(v)) {
+      //  vim_list.add(v);
+      //}
       if (v.getType().equals("openstack")) {
         openstackNeutronQoS(key, v, vim_vnfrs_map);
       } else {
@@ -340,6 +358,10 @@ public class CoreModule {
           // well we found the correct vim
           v = vim;
         }
+      }
+      if (v == null) {
+        logger.warn("Problem generating the credentials");
+        return cred;
       }
       //logger.debug("        adding identity : " + v.getTenant() + ":" + v.getUsername());
       cred.put("identity", v.getTenant() + ":" + v.getUsername());
@@ -540,6 +562,8 @@ public class CoreModule {
     HashMap<String, String> vim_name_map = new HashMap<String, String>();
     // Set up a map containing all external vim ids together with their names
     HashMap<String, String> vim_type_map = new HashMap<String, String>();
+    // Set up a map containing all external vim ids together with their projects in which they are used
+    HashMap<String, Object> vim_project_map = new HashMap<String, Object>();
     // Set up a map containing all internal vim hashs and related node information ( openstack only currently)
     HashMap<Integer, Object> node_map = new HashMap<Integer, Object>();
     // Set up a map containing all projects ids together with their names
@@ -702,6 +726,28 @@ public class CoreModule {
                     vdu_vnfci_map.put(vdu.getId(), tmp_vnfcis);
                   }
                   VimInstance tmp_vim = this.getVimInstance(nfvo_nsr_req, vnfci.getVim_id());
+                  //if (!vim_list.contains(tmp_vim)) {
+                  //  vim_list.add(tmp_vim);
+                  //}
+                  // Remove all occurences matching the old id
+                  for (int x = 0; x < vim_list.size(); x++) {
+                    VimInstance vim = vim_list.get(x);
+                    if (vim.getId().equals(tmp_vim.getId())) {
+                      vim_list.remove(vim);
+                    }
+                  }
+                  vim_list.add(tmp_vim);
+                  ArrayList<String> tmp_list;
+                  if (vim_project_map.containsKey(tmp_vim.getId())) {
+                    tmp_list = (ArrayList<String>) vim_project_map.get(tmp_vim.getId());
+                    if (!tmp_list.contains(project.getId())) {
+                      tmp_list.add(project.getId());
+                    }
+                  } else {
+                    tmp_list = new ArrayList<String>();
+                    tmp_list.add(project.getId());
+                    vim_project_map.put(tmp_vim.getId(), tmp_list);
+                  }
                   // Generate an identifier internally to not distinguish vims by their internal id but at other crucial information to avoid contacting the same infrastructure
                   int vim_identifier =
                       (tmp_vim.getAuthUrl() + tmp_vim.getUsername() + tmp_vim.getTenant())
@@ -779,6 +825,7 @@ public class CoreModule {
       this.osOverview.setVims(vim_map);
       this.osOverview.setVim_names(vim_name_map);
       this.osOverview.setVim_types(vim_type_map);
+      this.osOverview.setVim_projects(vim_project_map);
       this.osOverview.setOs_nodes(node_map);
       this.osOverview.setProjects(project_id_map);
       this.osOverview.setNsrs(project_nsr_map);
@@ -879,6 +926,54 @@ public class CoreModule {
     logger.debug("VIM : " + vim);
     logger.debug("Port : " + port);
     logger.debug("Quality : " + qual);
+  }
+
+  // Method to be called by the NSE-GUI to apply bandwidth limitations directly
+  @CrossOrigin(origins = "*")
+  @RequestMapping("/list")
+  public ArrayList<OpenStackQoSPolicy> list(
+      @RequestParam(value = "project", defaultValue = "project_id") String project,
+      @RequestParam(value = "vim", defaultValue = "vim_id") String vim) {
+    logger.debug("Received QoS rule list request for vim : " + vim + " in project " + project);
+    //String qos_rules = "[]";
+    //JSONArray qos_rules = new JSONArray();
+    ArrayList<OpenStackQoSPolicy> qos_policy_list = new ArrayList<OpenStackQoSPolicy>();
+    for (VimInstance v : vim_list) {
+      if (v.getId().equals(vim)) {
+        logger.debug("Found vim-instance to work with");
+        if (v.getType().equals("openstack")) {
+
+          NFVORequestor nfvoRequestor = null;
+          try {
+            nfvoRequestor =
+                new NFVORequestor(
+                    "nse",
+                    project,
+                    nfvo_configuration.getIp(),
+                    nfvo_configuration.getPort(),
+                    "1",
+                    false,
+                    nse_configuration.getService().getKey());
+
+            OSClient tmp_os = getOSClient(v);
+            logger.debug("Found OSclient");
+            String token = getAuthToken(tmp_os, v);
+            logger.debug("Found token");
+            String neutron_access = getNeutronEndpoint(tmp_os, v, token);
+            Map<String, String> creds = getDatacenterCredentials(nfvoRequestor, v.getId());
+            creds.put("neutron", neutron_access);
+            NeutronQoSExecutor neutron_executor =
+                new NeutronQoSExecutor(neutron_handler, token, v, creds);
+            qos_policy_list = neutron_executor.getNeutronQosRules();
+          } catch (SDKException e) {
+            e.printStackTrace();
+          }
+        } else {
+          logger.warn("VIM type " + v.getType() + " not supported yet");
+        }
+      }
+    }
+    return qos_policy_list;
   }
 
   // Method to be called by the NSE-GUI to scale out

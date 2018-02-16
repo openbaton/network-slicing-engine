@@ -20,6 +20,8 @@ public class OpenStackOverview {
 
   private Map<String, String> vim_types;
 
+  private Map<String, Object> vim_projects;
+
   private Map<Integer, Object> os_nodes;
 
   private Map<String, String> projects;
@@ -86,6 +88,10 @@ public class OpenStackOverview {
 
   public void setVim_types(Map<String, String> vim_types) {
     this.vim_types = vim_types;
+  }
+
+  public void setVim_projects(Map<String, Object> vim_projects) {
+    this.vim_projects = vim_projects;
   }
 
   public void setOs_nodes(Map<Integer, Object> os_nodes) {
@@ -189,6 +195,7 @@ public class OpenStackOverview {
     this.vims = new HashMap<Integer, Object>();
     this.vim_names = new HashMap<String, String>();
     this.vim_types = new HashMap<String, String>();
+    this.vim_projects = new HashMap<String, Object>();
     this.os_nodes = new HashMap<Integer, Object>();
     this.projects = new HashMap<String, String>();
     this.nsrs = new HashMap<String, Object>();

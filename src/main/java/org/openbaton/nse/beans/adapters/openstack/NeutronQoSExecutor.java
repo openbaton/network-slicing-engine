@@ -36,6 +36,8 @@ import org.jclouds.openstack.neutron.v2.features.PortApi;
 import org.jclouds.openstack.nova.v2_0.NovaApi;
 import org.jclouds.openstack.v2_0.options.PaginationOptions;
 */
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.openbaton.catalogue.mano.common.Ip;
 import org.openbaton.catalogue.mano.descriptor.InternalVirtualLink;
 import org.openbaton.catalogue.mano.descriptor.VNFDConnectionPoint;
@@ -44,6 +46,7 @@ import org.openbaton.catalogue.mano.record.VNFCInstance;
 import org.openbaton.catalogue.mano.record.VirtualNetworkFunctionRecord;
 import org.openbaton.catalogue.nfvo.VimInstance;
 import org.openbaton.nse.utils.DetailedQoSReference;
+import org.openbaton.nse.utils.OpenStackQoSPolicy;
 import org.openbaton.nse.utils.QoSReference;
 import org.openbaton.nse.utils.Quality;
 import org.openstack4j.api.OSClient;
@@ -90,6 +93,15 @@ public class NeutronQoSExecutor implements Runnable {
     this.portList = portList;
     this.computeNodeMap = computeNodeMap;
     this.hostComputeNodeMap = hostComputeNodeMap;
+  }
+
+  public NeutronQoSExecutor(
+      NeutronQoSHandler handler, String token, VimInstance v, Map<String, String> creds) {
+    this.logger = LoggerFactory.getLogger(this.getClass());
+    this.neutron_handler = handler;
+    this.token = token;
+    this.v = v;
+    this.creds = creds;
   }
 
   private void init() {
@@ -268,6 +280,26 @@ public class NeutronQoSExecutor implements Runnable {
               + creds.get("auth")
               + " has been modified in OpenStack Neutron, remove the QoS policy in OpenStack Neutron to get rid of this warning");
     }
+  }
+
+  public ArrayList<OpenStackQoSPolicy> getNeutronQosRules() {
+    ArrayList<OpenStackQoSPolicy> policy_list = new ArrayList<OpenStackQoSPolicy>();
+    String response =
+        neutron_handler.neutron_http_connection(
+            creds.get("neutron") + "/qos/policies", "GET", token, null);
+    if (response == null) {
+      logger.warn("    Can not list existing QoS policies for OpenStack Neutron");
+      return null;
+    }
+    // Save the already configured policies in a hash map for later usage
+    JSONObject ans = new JSONObject(response);
+    JSONArray qos_p = ans.getJSONArray("policies");
+    for (int i = 0; i < qos_p.length(); i++) {
+      JSONObject o = qos_p.getJSONObject(i);
+      OpenStackQoSPolicy tmp_policy = new OpenStackQoSPolicy(o);
+      policy_list.add(tmp_policy);
+    }
+    return policy_list;
   }
 
   // method to list all QoS policies configured in neutron
