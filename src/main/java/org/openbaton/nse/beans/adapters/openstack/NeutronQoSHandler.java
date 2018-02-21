@@ -65,6 +65,10 @@ public class NeutronQoSHandler {
         connection.setRequestProperty("Content-Type", "application/json");
       } else if (method.equals("POST")) {
 
+      } else if (method.equals("DELETE")) {
+        connection.setRequestMethod("DELETE");
+        connection.setRequestProperty("Accept", "application/json");
+        connection.setRequestProperty("Content-Type", "application/json");
       } else if (method.equals("GET")) {
         connection.setRequestProperty("Accept", "application/json");
         connection.setRequestProperty("Content-Type", "application/json");
@@ -262,6 +266,21 @@ public class NeutronQoSHandler {
     // TODO : catch null objects
     JSONObject tmp =
         new JSONObject("{\"bandwidth_limit_rule\":{\"max_kbps\":\"" + max_rate + "\"}}");
+    //logger.debug("Created bandwidth_limit_rule payload : " + tmp.toString());
+    return tmp;
+  }
+
+  public JSONObject createBandwidthLimitRulePayload(String type, String max_rate, String burst) {
+    // TODO : catch null objects
+    JSONObject tmp =
+        new JSONObject(
+            "{\""
+                + type
+                + "\":{\"max_kbps\":\""
+                + max_rate
+                + "\",\"max_burst_kbps\":\""
+                + burst
+                + "\"}}");
     //logger.debug("Created bandwidth_limit_rule payload : " + tmp.toString());
     return tmp;
   }

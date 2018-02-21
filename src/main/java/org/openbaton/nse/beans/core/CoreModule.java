@@ -31,12 +31,9 @@ import org.openbaton.catalogue.nfvo.VimInstance;
 import org.openbaton.catalogue.security.Project;
 import org.openbaton.nse.beans.adapters.openstack.NeutronQoSExecutor;
 import org.openbaton.nse.beans.adapters.openstack.NeutronQoSHandler;
-import org.openbaton.nse.utils.DetailedQoSReference;
-import org.openbaton.nse.utils.OpenStackOverview;
+import org.openbaton.nse.utils.*;
 import org.openbaton.nse.properties.NseProperties;
 import org.openbaton.nse.properties.NfvoProperties;
-import org.openbaton.nse.utils.OpenStackQoSPolicy;
-import org.openbaton.nse.utils.Quality;
 import org.openbaton.sdk.NFVORequestor;
 import org.openbaton.sdk.api.exception.SDKException;
 import org.openbaton.sdk.api.rest.VimInstanceAgent;
@@ -928,13 +925,226 @@ public class CoreModule {
     logger.debug("Quality : " + qual);
   }
 
+  // Method to be called by the NSE-GUI to delete QoS policies
+  @CrossOrigin(origins = "*")
+  @RequestMapping("/bandwidth-rule-delete")
+  public void createPolicy(
+      @RequestParam(value = "project", defaultValue = "project_id") String project,
+      @RequestParam(value = "id", defaultValue = "policy_id") String id,
+      @RequestParam(value = "vim", defaultValue = "vim_id") String vim) {
+    logger.debug(
+        "Received QoS policy delete request for vim : "
+            + vim
+            + " in project "
+            + project
+            + " policy : "
+            + id);
+    for (VimInstance v : vim_list) {
+      if (v.getId().equals(vim)) {
+        logger.debug("Found vim-instance to work with");
+        if (v.getType().equals("openstack")) {
+
+          NFVORequestor nfvoRequestor = null;
+          try {
+            nfvoRequestor =
+                new NFVORequestor(
+                    "nse",
+                    project,
+                    nfvo_configuration.getIp(),
+                    nfvo_configuration.getPort(),
+                    "1",
+                    false,
+                    nse_configuration.getService().getKey());
+            OSClient tmp_os = getOSClient(v);
+            logger.debug("Found OSclient");
+            String token = getAuthToken(tmp_os, v);
+            logger.debug("Found token");
+            String neutron_access = getNeutronEndpoint(tmp_os, v, token);
+            Map<String, String> creds = getDatacenterCredentials(nfvoRequestor, v.getId());
+            creds.put("neutron", neutron_access);
+            NeutronQoSExecutor neutron_executor =
+                new NeutronQoSExecutor(neutron_handler, token, v, creds);
+            neutron_executor.deleteQoSPolicy(id);
+          } catch (SDKException e) {
+            e.printStackTrace();
+          }
+        } else {
+          logger.warn("VIM type " + v.getType() + " not supported yet");
+        }
+      }
+    }
+    this.notifyChange();
+  }
+
+  // Method to be called by the NSE-GUI to delete QoS policies
+  @CrossOrigin(origins = "*")
+  @RequestMapping("/policy-delete")
+  public void createBandwidthRule(
+      @RequestParam(value = "project", defaultValue = "project_id") String project,
+      @RequestParam(value = "policy_id", defaultValue = "policy_id") String policy_id,
+      @RequestParam(value = "rule_id", defaultValue = "rule_id") String rule_id,
+      @RequestParam(value = "vim", defaultValue = "vim_id") String vim) {
+    logger.debug(
+        "Received bandwidth rule delete request for vim : "
+            + vim
+            + " in project "
+            + project
+            + " policy : "
+            + policy_id
+            + " rule : "
+            + rule_id);
+    for (VimInstance v : vim_list) {
+      if (v.getId().equals(vim)) {
+        logger.debug("Found vim-instance to work with");
+        if (v.getType().equals("openstack")) {
+
+          NFVORequestor nfvoRequestor = null;
+          try {
+            nfvoRequestor =
+                new NFVORequestor(
+                    "nse",
+                    project,
+                    nfvo_configuration.getIp(),
+                    nfvo_configuration.getPort(),
+                    "1",
+                    false,
+                    nse_configuration.getService().getKey());
+            OSClient tmp_os = getOSClient(v);
+            logger.debug("Found OSclient");
+            String token = getAuthToken(tmp_os, v);
+            logger.debug("Found token");
+            String neutron_access = getNeutronEndpoint(tmp_os, v, token);
+            Map<String, String> creds = getDatacenterCredentials(nfvoRequestor, v.getId());
+            creds.put("neutron", neutron_access);
+            NeutronQoSExecutor neutron_executor =
+                new NeutronQoSExecutor(neutron_handler, token, v, creds);
+            neutron_executor.deleteBandwidthRule(policy_id, rule_id);
+          } catch (SDKException e) {
+            e.printStackTrace();
+          }
+        } else {
+          logger.warn("VIM type " + v.getType() + " not supported yet");
+        }
+      }
+    }
+    this.notifyChange();
+  }
+
+  // Method to be called by the NSE-GUI to create QoS policies
+  @CrossOrigin(origins = "*")
+  @RequestMapping("/bandwidth-rule-create")
+  public void createBandwidthRule(
+      @RequestParam(value = "project", defaultValue = "project_id") String project,
+      @RequestParam(value = "id", defaultValue = "policy_id") String id,
+      @RequestParam(value = "type", defaultValue = "bandwidth_limit_rule") String type,
+      @RequestParam(value = "burst", defaultValue = "0") String burst,
+      @RequestParam(value = "kbps", defaultValue = "0") String kbps,
+      @RequestParam(value = "vim", defaultValue = "vim_id") String vim) {
+    logger.debug(
+        "Received bandwidth rule create request for vim : " + vim + " in project " + project);
+    logger.debug(
+        "Policy id : " + id + " type : " + type + " max_kbps : " + kbps + " burst : " + burst);
+    OpenStackBandwidthRule rule = new OpenStackBandwidthRule();
+    //policy.setRules(rules);
+    for (VimInstance v : vim_list) {
+      if (v.getId().equals(vim)) {
+        logger.debug("Found vim-instance to work with");
+        if (v.getType().equals("openstack")) {
+
+          NFVORequestor nfvoRequestor = null;
+          try {
+            nfvoRequestor =
+                new NFVORequestor(
+                    "nse",
+                    project,
+                    nfvo_configuration.getIp(),
+                    nfvo_configuration.getPort(),
+                    "1",
+                    false,
+                    nse_configuration.getService().getKey());
+            OSClient tmp_os = getOSClient(v);
+            logger.debug("Found OSclient");
+            String token = getAuthToken(tmp_os, v);
+            logger.debug("Found token");
+            String neutron_access = getNeutronEndpoint(tmp_os, v, token);
+            Map<String, String> creds = getDatacenterCredentials(nfvoRequestor, v.getId());
+            creds.put("neutron", neutron_access);
+            NeutronQoSExecutor neutron_executor =
+                new NeutronQoSExecutor(neutron_handler, token, v, creds);
+            neutron_executor.createBandwidthRule(rule, id);
+          } catch (SDKException e) {
+            e.printStackTrace();
+          }
+        } else {
+          logger.warn("VIM type " + v.getType() + " not supported yet");
+        }
+      }
+    }
+    this.notifyChange();
+  }
+
+  // Method to be called by the NSE-GUI to create QoS policies
+  @CrossOrigin(origins = "*")
+  @RequestMapping("/policy-create")
+  public void createPolicy(
+      @RequestParam(value = "project", defaultValue = "project_id") String project,
+      @RequestParam(value = "name", defaultValue = "name") String name,
+      @RequestParam(value = "type", defaultValue = "bandwidth_limit_rule") String type,
+      @RequestParam(value = "burst", defaultValue = "0") String burst,
+      @RequestParam(value = "kbps", defaultValue = "0") String kbps,
+      @RequestParam(value = "vim", defaultValue = "vim_id") String vim) {
+    logger.debug("Received QoS policy create request for vim : " + vim + " in project " + project);
+    logger.debug(
+        "Name : " + name + " type : " + type + " max_kbps : " + kbps + " burst : " + burst);
+    OpenStackQoSPolicy policy = new OpenStackQoSPolicy();
+    policy.setName(name);
+    ArrayList<OpenStackBandwidthRule> rules = new ArrayList<OpenStackBandwidthRule>();
+    rules.add(new OpenStackBandwidthRule(burst, kbps, type));
+    policy.setRules(rules);
+    for (VimInstance v : vim_list) {
+      if (v.getId().equals(vim)) {
+        logger.debug("Found vim-instance to work with");
+        if (v.getType().equals("openstack")) {
+
+          NFVORequestor nfvoRequestor = null;
+          try {
+            nfvoRequestor =
+                new NFVORequestor(
+                    "nse",
+                    project,
+                    nfvo_configuration.getIp(),
+                    nfvo_configuration.getPort(),
+                    "1",
+                    false,
+                    nse_configuration.getService().getKey());
+            OSClient tmp_os = getOSClient(v);
+            logger.debug("Found OSclient");
+            String token = getAuthToken(tmp_os, v);
+            logger.debug("Found token");
+            String neutron_access = getNeutronEndpoint(tmp_os, v, token);
+            Map<String, String> creds = getDatacenterCredentials(nfvoRequestor, v.getId());
+            creds.put("neutron", neutron_access);
+            NeutronQoSExecutor neutron_executor =
+                new NeutronQoSExecutor(neutron_handler, token, v, creds);
+            neutron_executor.createQoSPolicy(policy);
+          } catch (SDKException e) {
+            e.printStackTrace();
+          }
+        } else {
+          logger.warn("VIM type " + v.getType() + " not supported yet");
+        }
+      }
+    }
+    this.notifyChange();
+  }
+
   // Method to be called by the NSE-GUI to apply bandwidth limitations directly
   @CrossOrigin(origins = "*")
   @RequestMapping("/list")
   public ArrayList<OpenStackQoSPolicy> list(
       @RequestParam(value = "project", defaultValue = "project_id") String project,
       @RequestParam(value = "vim", defaultValue = "vim_id") String vim) {
-    logger.debug("Received QoS rule list request for vim : " + vim + " in project " + project);
+    logger.debug("Received QoS policy list request for vim : " + vim + " in project " + project);
     //String qos_rules = "[]";
     //JSONArray qos_rules = new JSONArray();
     ArrayList<OpenStackQoSPolicy> qos_policy_list = new ArrayList<OpenStackQoSPolicy>();

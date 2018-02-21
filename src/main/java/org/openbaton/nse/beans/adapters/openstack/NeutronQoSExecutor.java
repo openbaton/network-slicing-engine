@@ -45,10 +45,7 @@ import org.openbaton.catalogue.mano.descriptor.VirtualDeploymentUnit;
 import org.openbaton.catalogue.mano.record.VNFCInstance;
 import org.openbaton.catalogue.mano.record.VirtualNetworkFunctionRecord;
 import org.openbaton.catalogue.nfvo.VimInstance;
-import org.openbaton.nse.utils.DetailedQoSReference;
-import org.openbaton.nse.utils.OpenStackQoSPolicy;
-import org.openbaton.nse.utils.QoSReference;
-import org.openbaton.nse.utils.Quality;
+import org.openbaton.nse.utils.*;
 import org.openstack4j.api.OSClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -209,6 +206,35 @@ public class NeutronQoSExecutor implements Runnable {
     }
   }
 
+  public void deleteBandwidthRule(String rule_id, String policy_id) {
+    String response =
+        neutron_handler.neutron_http_connection(
+            creds.get("neutron")
+                + "/qos/policies/"
+                + policy_id
+                + "/bandwidth_limit_rules/"
+                + rule_id,
+            "DELETE",
+            token,
+            null);
+    if (response == null) {
+      logger.error(
+          "Error trying to delete bandwidth rule :"
+              + rule_id
+              + " belonging to QoS policy "
+              + policy_id);
+    }
+  }
+
+  public void deleteQoSPolicy(String id) {
+    String response =
+        neutron_handler.neutron_http_connection(
+            creds.get("neutron") + "/qos/policies/" + id, "DELETE", token, null);
+    if (response == null) {
+      logger.error("Error trying to delete QoS policy :" + id);
+    }
+  }
+
   // method to create a non existing QoS policy in Openstack
   private String createQoSPolicy(
       Map<String, String> creds,
@@ -279,6 +305,52 @@ public class NeutronQoSExecutor implements Runnable {
               + " on "
               + creds.get("auth")
               + " has been modified in OpenStack Neutron, remove the QoS policy in OpenStack Neutron to get rid of this warning");
+    }
+  }
+
+  public void createBandwidthRule(OpenStackBandwidthRule rule, String id) {
+    String response =
+        neutron_handler.neutron_http_connection(
+            creds.get("neutron") + "/qos/policies/" + id + "/bandwidth_limit_rules",
+            "POST",
+            token,
+            neutron_handler.createBandwidthLimitRulePayload(
+                rule.getType(),
+                rule.getMax_kbps().toString(),
+                rule.getMax_burst_kbps().toString()));
+    if (response == null) {
+      logger.error("Error trying to create bandwidth rule for QoS policy");
+      return;
+    }
+    logger.debug("    Created bandwidth limitation rule for new QoS policy : " + id);
+  }
+
+  public void createQoSPolicy(OpenStackQoSPolicy policy) {
+    String response =
+        neutron_handler.neutron_http_connection(
+            creds.get("neutron") + "/qos/policies",
+            "POST",
+            token,
+            neutron_handler.createPolicyPayload(policy.getName()));
+    if (response == null) {
+      logger.error("Error trying to create QoS policy :" + policy.getName());
+    }
+    String policy_id = neutron_handler.parsePolicyId(response);
+    policy.setId(policy_id);
+    for (OpenStackBandwidthRule rule : policy.getRules()) {
+      response =
+          neutron_handler.neutron_http_connection(
+              creds.get("neutron") + "/qos/policies/" + policy_id + "/bandwidth_limit_rules",
+              "POST",
+              token,
+              neutron_handler.createBandwidthLimitRulePayload(
+                  rule.getType(),
+                  rule.getMax_kbps().toString(),
+                  rule.getMax_burst_kbps().toString()));
+      if (response == null) {
+        logger.error("Error trying to create bandwidth rule for QoS policy");
+        return;
+      }
     }
   }
 

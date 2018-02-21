@@ -31,6 +31,24 @@ public class OpenStackQoSPolicy {
     this.rules = rules;
   }
 
+  public String getId() {
+    return id;
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public String getDescription() {
+    return description;
+  }
+
+  public ArrayList<OpenStackBandwidthRule> getRules() {
+    return rules;
+  }
+
+  public OpenStackQoSPolicy() {}
+
   public OpenStackQoSPolicy(
       String id, String name, String description, ArrayList<OpenStackBandwidthRule> rules) {
     this.id = id;
