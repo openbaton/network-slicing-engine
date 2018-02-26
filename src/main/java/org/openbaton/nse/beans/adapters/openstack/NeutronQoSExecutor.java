@@ -374,6 +374,15 @@ public class NeutronQoSExecutor implements Runnable {
     return policy_list;
   }
 
+  public void assignQoSPolicyToPort(String port, String policy) {
+    String response =
+        neutron_handler.neutron_http_connection(
+            creds.get("neutron") + "/ports/" + port + ".json",
+            "PUT",
+            token,
+            neutron_handler.createPolicyUpdatePayload(policy));
+  }
+
   // method to list all QoS policies configured in neutron
   private Map<String, String> getNeutronQoSPolicies(
       NeutronQoSHandler neutron_handler, Map<String, String> creds, Object access) {

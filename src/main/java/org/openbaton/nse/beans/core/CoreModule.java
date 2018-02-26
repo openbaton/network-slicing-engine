@@ -915,20 +915,61 @@ public class CoreModule {
 
   // Method to be called by the NSE-GUI to apply bandwidth limitations directly
   @CrossOrigin(origins = "*")
-  @RequestMapping("/limit")
-  public void limit(
+  @RequestMapping("/assign-policy")
+  public void assignPolicy(
+      @RequestParam(value = "project", defaultValue = "project_id") String project,
       @RequestParam(value = "vim", defaultValue = "vim_id") String vim,
       @RequestParam(value = "port", defaultValue = "port_id") String port,
-      @RequestParam(value = "quality", defaultValue = "quality") String qual) {
-    logger.debug("VIM : " + vim);
-    logger.debug("Port : " + port);
-    logger.debug("Quality : " + qual);
+      @RequestParam(value = "policy", defaultValue = "policy_id") String policy) {
+    logger.debug(
+        "Received assign policy request for vim : "
+            + vim
+            + " in project "
+            + project
+            + " port : "
+            + port
+            + " policy : "
+            + policy);
+    for (VimInstance v : vim_list) {
+      if (v.getId().equals(vim)) {
+        logger.debug("Found vim-instance to work with");
+        if (v.getType().equals("openstack")) {
+          NFVORequestor nfvoRequestor = null;
+          try {
+            nfvoRequestor =
+                new NFVORequestor(
+                    "nse",
+                    project,
+                    nfvo_configuration.getIp(),
+                    nfvo_configuration.getPort(),
+                    "1",
+                    false,
+                    nse_configuration.getService().getKey());
+            OSClient tmp_os = getOSClient(v);
+            logger.debug("Found OSclient");
+            String token = getAuthToken(tmp_os, v);
+            logger.debug("Found token");
+            String neutron_access = getNeutronEndpoint(tmp_os, v, token);
+            Map<String, String> creds = getDatacenterCredentials(nfvoRequestor, v.getId());
+            creds.put("neutron", neutron_access);
+            NeutronQoSExecutor neutron_executor =
+                new NeutronQoSExecutor(neutron_handler, token, v, creds);
+            neutron_executor.assignQoSPolicyToPort(port, policy);
+          } catch (SDKException e) {
+            e.printStackTrace();
+          }
+        } else {
+          logger.warn("VIM type " + v.getType() + " not supported yet");
+        }
+      }
+    }
+    this.notifyChange();
   }
 
   // Method to be called by the NSE-GUI to delete QoS policies
   @CrossOrigin(origins = "*")
-  @RequestMapping("/bandwidth-rule-delete")
-  public void createPolicy(
+  @RequestMapping("/policy-delete")
+  public void deletePolicy(
       @RequestParam(value = "project", defaultValue = "project_id") String project,
       @RequestParam(value = "id", defaultValue = "policy_id") String id,
       @RequestParam(value = "vim", defaultValue = "vim_id") String vim) {
@@ -978,8 +1019,8 @@ public class CoreModule {
 
   // Method to be called by the NSE-GUI to delete QoS policies
   @CrossOrigin(origins = "*")
-  @RequestMapping("/policy-delete")
-  public void createBandwidthRule(
+  @RequestMapping("/bandwidth-rule-delete")
+  public void deleteBandwidthRule(
       @RequestParam(value = "project", defaultValue = "project_id") String project,
       @RequestParam(value = "policy_id", defaultValue = "policy_id") String policy_id,
       @RequestParam(value = "rule_id", defaultValue = "rule_id") String rule_id,
