@@ -231,7 +231,7 @@ public class NeutronQoSExecutor implements Runnable {
         neutron_handler.neutron_http_connection(
             creds.get("neutron") + "/qos/policies/" + id, "DELETE", token, null);
     if (response == null) {
-      logger.error("Error trying to delete QoS policy :" + id);
+      logger.error("Error trying to delete QoS policy :" + id + " are there still VMs using it?");
     }
   }
 

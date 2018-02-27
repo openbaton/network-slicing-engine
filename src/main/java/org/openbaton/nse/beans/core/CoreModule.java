@@ -920,7 +920,7 @@ public class CoreModule {
       @RequestParam(value = "project", defaultValue = "project_id") String project,
       @RequestParam(value = "vim", defaultValue = "vim_id") String vim,
       @RequestParam(value = "port", defaultValue = "port_id") String port,
-      @RequestParam(value = "policy", defaultValue = "policy_id") String policy) {
+      @RequestParam(value = "policy", defaultValue = "no-qos-policy") String policy) {
     logger.debug(
         "Received assign policy request for vim : "
             + vim
@@ -1059,7 +1059,7 @@ public class CoreModule {
             creds.put("neutron", neutron_access);
             NeutronQoSExecutor neutron_executor =
                 new NeutronQoSExecutor(neutron_handler, token, v, creds);
-            neutron_executor.deleteBandwidthRule(policy_id, rule_id);
+            neutron_executor.deleteBandwidthRule(rule_id, policy_id);
           } catch (SDKException e) {
             e.printStackTrace();
           }
@@ -1081,12 +1081,28 @@ public class CoreModule {
       @RequestParam(value = "burst", defaultValue = "0") String burst,
       @RequestParam(value = "kbps", defaultValue = "0") String kbps,
       @RequestParam(value = "vim", defaultValue = "vim_id") String vim) {
+    if (!burst.matches("[0-9]+")) {
+      logger.error(
+          "Cannot create bandwidth rule with max_kbps : \""
+              + burst
+              + "\" please enter a valid number");
+      return;
+    }
+    if (!kbps.matches("[0-9]+")) {
+      logger.error(
+          "Cannot create bandwidth rule with max_kbps : \""
+              + kbps
+              + "\" please enter a valid number");
+      return;
+    }
     logger.debug(
         "Received bandwidth rule create request for vim : " + vim + " in project " + project);
     logger.debug(
         "Policy id : " + id + " type : " + type + " max_kbps : " + kbps + " burst : " + burst);
     OpenStackBandwidthRule rule = new OpenStackBandwidthRule();
-    //policy.setRules(rules);
+    rule.setMax_burst_kbps(new Integer(burst));
+    rule.setType(type);
+    rule.setMax_kbps(new Integer(kbps));
     for (VimInstance v : vim_list) {
       if (v.getId().equals(vim)) {
         logger.debug("Found vim-instance to work with");
@@ -1134,6 +1150,18 @@ public class CoreModule {
       @RequestParam(value = "burst", defaultValue = "0") String burst,
       @RequestParam(value = "kbps", defaultValue = "0") String kbps,
       @RequestParam(value = "vim", defaultValue = "vim_id") String vim) {
+    if (!burst.matches("[0-9]+")) {
+      logger.error(
+          "Cannot create policy with max_burst_kbps : \""
+              + burst
+              + "\" please enter a valid number");
+      return;
+    }
+    if (!kbps.matches("[0-9]+")) {
+      logger.error(
+          "Cannot create policy with max_kbps : \"" + kbps + "\" please enter a valid number");
+      return;
+    }
     logger.debug("Received QoS policy create request for vim : " + vim + " in project " + project);
     logger.debug(
         "Name : " + name + " type : " + type + " max_kbps : " + kbps + " burst : " + burst);
