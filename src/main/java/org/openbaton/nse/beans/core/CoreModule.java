@@ -619,6 +619,9 @@ public class CoreModule {
     // Set up a map containing the vnfci ids listed with their related hypervisor/ compute node
     HashMap<String, String> vnfci_hypervisor_map = new HashMap<String, String>();
 
+    // Set up a map containing the vlr id together with the external network id
+    HashMap<String, String> vlr_ext_net_map = new HashMap<String, String>();
+
     try {
       nfvo_default_req =
           new NFVORequestor(
@@ -753,8 +756,22 @@ public class CoreModule {
                   if (!vim_name_map.containsKey(tmp_vim.getId())) {
                     vim_name_map.put(tmp_vim.getId(), tmp_vim.getName());
                     vim_type_map.put(tmp_vim.getId(), tmp_vim.getType());
+                    //ArrayList<String> vlrs = (ArrayList<String>) vnfr_vlr_map.get(vnfr.getId());
                     for (org.openbaton.catalogue.nfvo.Network n : tmp_vim.getNetworks()) {
                       net_name_map.put(n.getExtId(), n.getName());
+                      //for (String vlr_id : vlrs) {
+                      //  if (vlr_name_map.get(vlr_id).equals(n.getName())) {
+                      //    vlr_ext_net_map.put(vlr_id, n.getExtId());
+                      //  }
+                      //}
+                    }
+                  }
+                  ArrayList<String> vlrs = (ArrayList<String>) vnfr_vlr_map.get(vnfr.getId());
+                  for (org.openbaton.catalogue.nfvo.Network n : tmp_vim.getNetworks()) {
+                    for (String vlr_id : vlrs) {
+                      if (vlr_name_map.get(vlr_id).equals(n.getName())) {
+                        vlr_ext_net_map.put(vlr_id, n.getExtId());
+                      }
                     }
                   }
                   vnfci_vim_map.put(vnfci.getId(), vim_identifier);
@@ -892,6 +909,7 @@ public class CoreModule {
       this.osOverview.setOs_port_net_map(port_net_map);
       this.osOverview.setOs_net_names(net_name_map);
       this.osOverview.setVnfci_hypervisors(vnfci_hypervisor_map);
+      this.osOverview.setVlr_ext_networks(vlr_ext_net_map);
 
       //logger.debug(vnfr_list.toString());
 

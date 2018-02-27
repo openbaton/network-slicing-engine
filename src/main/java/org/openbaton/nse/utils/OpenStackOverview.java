@@ -70,6 +70,8 @@ public class OpenStackOverview {
 
   private Map<String, String> vnfci_hypervisors;
 
+  private Map<String, String> vlr_ext_networks;
+
   public String getCurrent_hash() {
     return current_hash;
   }
@@ -190,6 +192,10 @@ public class OpenStackOverview {
     this.vnfci_hypervisors = vnfci_hypervisors;
   }
 
+  public void setVlr_ext_networks(Map<String, String> vlr_ext_networks) {
+    this.vlr_ext_networks = vlr_ext_networks;
+  }
+
   public OpenStackOverview() {
     //this.current_hash = null;
     this.vims = new HashMap<Integer, Object>();
@@ -220,5 +226,6 @@ public class OpenStackOverview {
     this.os_port_net_map = new HashMap<String, String>();
     this.os_net_names = new HashMap<String, String>();
     this.vnfci_hypervisors = new HashMap<String, String>();
+    this.vlr_ext_networks = new HashMap<String, String>();
   }
 }
