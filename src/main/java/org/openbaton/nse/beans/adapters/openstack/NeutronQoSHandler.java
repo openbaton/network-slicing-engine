@@ -257,7 +257,12 @@ public class NeutronQoSHandler {
 
   public JSONObject createPolicyUpdatePayload(String id) {
     // TODO : catch null objects
-    JSONObject tmp = new JSONObject("{\"port\":{\"qos_policy_id\":\"" + id + "\"}}");
+    JSONObject tmp;
+    if (id.equals("no_policy")) {
+      tmp = new JSONObject("{\"port\":{\"qos_policy_id\":\"" + id + "\"}}");
+    } else {
+      tmp = new JSONObject("{\"port\":{\"qos_policy_id\":\"" + id + "\"}}");
+    }
     //logger.debug("Created policy update payload : " + tmp.toString());
     return tmp;
   }

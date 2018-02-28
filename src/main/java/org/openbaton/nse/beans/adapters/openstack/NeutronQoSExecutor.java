@@ -47,6 +47,7 @@ import org.openbaton.catalogue.mano.record.VirtualNetworkFunctionRecord;
 import org.openbaton.catalogue.nfvo.VimInstance;
 import org.openbaton.nse.utils.*;
 import org.openstack4j.api.OSClient;
+import org.openstack4j.model.network.Network;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -354,6 +355,36 @@ public class NeutronQoSExecutor implements Runnable {
     }
   }
 
+  public ArrayList<OpenStackPort> listPorts() {
+    ArrayList<OpenStackPort> port_list = new ArrayList<OpenStackPort>();
+    String response =
+        neutron_handler.neutron_http_connection(
+            creds.get("neutron") + "/ports", "GET", token, null);
+    JSONObject ans = new JSONObject(response);
+    JSONArray net = ans.getJSONArray("ports");
+    for (int i = 0; i < net.length(); i++) {
+      JSONObject o = net.getJSONObject(i);
+      OpenStackPort tmp_port = new OpenStackPort(o);
+      port_list.add(tmp_port);
+    }
+    return port_list;
+  }
+
+  public ArrayList<OpenStackNetwork> listNetworks() {
+    ArrayList<OpenStackNetwork> net_list = new ArrayList<OpenStackNetwork>();
+    String response =
+        neutron_handler.neutron_http_connection(
+            creds.get("neutron") + "/networks", "GET", token, null);
+    JSONObject ans = new JSONObject(response);
+    JSONArray net = ans.getJSONArray("networks");
+    for (int i = 0; i < net.length(); i++) {
+      JSONObject o = net.getJSONObject(i);
+      OpenStackNetwork tmp_net = new OpenStackNetwork(o);
+      net_list.add(tmp_net);
+    }
+    return net_list;
+  }
+
   public ArrayList<OpenStackQoSPolicy> getNeutronQosRules() {
     ArrayList<OpenStackQoSPolicy> policy_list = new ArrayList<OpenStackQoSPolicy>();
     String response =
@@ -372,6 +403,15 @@ public class NeutronQoSExecutor implements Runnable {
       policy_list.add(tmp_policy);
     }
     return policy_list;
+  }
+
+  public void assignQoSPolicyToNetwork(String net, String policy) {
+    String response =
+        neutron_handler.neutron_http_connection(
+            creds.get("neutron") + "/networks/" + net + ".json",
+            "PUT",
+            token,
+            neutron_handler.createPolicyUpdatePayload(policy));
   }
 
   public void assignQoSPolicyToPort(String port, String policy) {

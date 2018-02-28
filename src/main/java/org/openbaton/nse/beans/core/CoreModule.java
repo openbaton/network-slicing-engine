@@ -931,14 +931,67 @@ public class CoreModule {
     return this.osOverview;
   }
 
-  // Method to be called by the NSE-GUI to apply bandwidth limitations directly
+  // Method to be called by the NSE-GUI to apply bandwidth limitations directly on a whole network
   @CrossOrigin(origins = "*")
-  @RequestMapping("/assign-policy")
-  public void assignPolicy(
+  @RequestMapping("/assign-net-policy")
+  public void assignNetPolicy(
+      @RequestParam(value = "project", defaultValue = "project_id") String project,
+      @RequestParam(value = "vim", defaultValue = "vim_id") String vim,
+      @RequestParam(value = "net", defaultValue = "net_id") String net,
+      @RequestParam(value = "policy", defaultValue = "no_policy") String policy) {
+    logger.debug(
+        "Received assign policy request for vim : "
+            + vim
+            + " in project "
+            + project
+            + " network : "
+            + net
+            + " policy : "
+            + policy);
+    for (VimInstance v : vim_list) {
+      if (v.getId().equals(vim)) {
+        logger.debug("Found vim-instance to work with");
+        if (v.getType().equals("openstack")) {
+          NFVORequestor nfvoRequestor = null;
+          try {
+            nfvoRequestor =
+                new NFVORequestor(
+                    "nse",
+                    project,
+                    nfvo_configuration.getIp(),
+                    nfvo_configuration.getPort(),
+                    "1",
+                    false,
+                    nse_configuration.getService().getKey());
+            OSClient tmp_os = getOSClient(v);
+            logger.debug("Found OSclient");
+            String token = getAuthToken(tmp_os, v);
+            logger.debug("Found token");
+            String neutron_access = getNeutronEndpoint(tmp_os, v, token);
+            Map<String, String> creds = getDatacenterCredentials(nfvoRequestor, v.getId());
+            creds.put("neutron", neutron_access);
+            NeutronQoSExecutor neutron_executor =
+                new NeutronQoSExecutor(neutron_handler, token, v, creds);
+            neutron_executor.assignQoSPolicyToNetwork(net, policy);
+          } catch (SDKException e) {
+            e.printStackTrace();
+          }
+        } else {
+          logger.warn("VIM type " + v.getType() + " not supported yet");
+        }
+      }
+    }
+    this.notifyChange();
+  }
+
+  // Method to be called by the NSE-GUI to apply bandwidth limitations directly on a port
+  @CrossOrigin(origins = "*")
+  @RequestMapping("/assign-port-policy")
+  public void assignPortPolicy(
       @RequestParam(value = "project", defaultValue = "project_id") String project,
       @RequestParam(value = "vim", defaultValue = "vim_id") String vim,
       @RequestParam(value = "port", defaultValue = "port_id") String port,
-      @RequestParam(value = "policy", defaultValue = "no-qos-policy") String policy) {
+      @RequestParam(value = "policy", defaultValue = "no_policy") String policy) {
     logger.debug(
         "Received assign policy request for vim : "
             + vim
@@ -1225,10 +1278,100 @@ public class CoreModule {
     this.notifyChange();
   }
 
-  // Method to be called by the NSE-GUI to apply bandwidth limitations directly
+  // Method to be called by the NSE-GUI to list networks
   @CrossOrigin(origins = "*")
-  @RequestMapping("/list")
-  public ArrayList<OpenStackQoSPolicy> list(
+  @RequestMapping("/list-ports")
+  public ArrayList<OpenStackPort> listPorts(
+      @RequestParam(value = "project", defaultValue = "project_id") String project,
+      @RequestParam(value = "vim", defaultValue = "vim_id") String vim) {
+    logger.debug("Received port list request for vim : " + vim + " in project " + project);
+    ArrayList<OpenStackPort> port_list = new ArrayList<OpenStackPort>();
+    for (VimInstance v : vim_list) {
+      if (v.getId().equals(vim)) {
+        logger.debug("Found vim-instance to work with");
+        if (v.getType().equals("openstack")) {
+          NFVORequestor nfvoRequestor = null;
+          try {
+            nfvoRequestor =
+                new NFVORequestor(
+                    "nse",
+                    project,
+                    nfvo_configuration.getIp(),
+                    nfvo_configuration.getPort(),
+                    "1",
+                    false,
+                    nse_configuration.getService().getKey());
+
+            OSClient tmp_os = getOSClient(v);
+            logger.debug("Found OSclient");
+            String token = getAuthToken(tmp_os, v);
+            logger.debug("Found token");
+            String neutron_access = getNeutronEndpoint(tmp_os, v, token);
+            Map<String, String> creds = getDatacenterCredentials(nfvoRequestor, v.getId());
+            creds.put("neutron", neutron_access);
+            NeutronQoSExecutor neutron_executor =
+                new NeutronQoSExecutor(neutron_handler, token, v, creds);
+            port_list = neutron_executor.listPorts();
+          } catch (SDKException e) {
+            e.printStackTrace();
+          }
+        } else {
+          logger.warn("VIM type " + v.getType() + " not supported yet");
+        }
+      }
+    }
+    return port_list;
+  }
+
+  // Method to be called by the NSE-GUI to list networks
+  @CrossOrigin(origins = "*")
+  @RequestMapping("/list-networks")
+  public ArrayList<OpenStackNetwork> listNetworks(
+      @RequestParam(value = "project", defaultValue = "project_id") String project,
+      @RequestParam(value = "vim", defaultValue = "vim_id") String vim) {
+    logger.debug("Received network list request for vim : " + vim + " in project " + project);
+    ArrayList<OpenStackNetwork> net_list = new ArrayList<OpenStackNetwork>();
+    for (VimInstance v : vim_list) {
+      if (v.getId().equals(vim)) {
+        logger.debug("Found vim-instance to work with");
+        if (v.getType().equals("openstack")) {
+          NFVORequestor nfvoRequestor = null;
+          try {
+            nfvoRequestor =
+                new NFVORequestor(
+                    "nse",
+                    project,
+                    nfvo_configuration.getIp(),
+                    nfvo_configuration.getPort(),
+                    "1",
+                    false,
+                    nse_configuration.getService().getKey());
+
+            OSClient tmp_os = getOSClient(v);
+            logger.debug("Found OSclient");
+            String token = getAuthToken(tmp_os, v);
+            logger.debug("Found token");
+            String neutron_access = getNeutronEndpoint(tmp_os, v, token);
+            Map<String, String> creds = getDatacenterCredentials(nfvoRequestor, v.getId());
+            creds.put("neutron", neutron_access);
+            NeutronQoSExecutor neutron_executor =
+                new NeutronQoSExecutor(neutron_handler, token, v, creds);
+            net_list = neutron_executor.listNetworks();
+          } catch (SDKException e) {
+            e.printStackTrace();
+          }
+        } else {
+          logger.warn("VIM type " + v.getType() + " not supported yet");
+        }
+      }
+    }
+    return net_list;
+  }
+
+  // Method to be called by the NSE-GUI to list QoS policies
+  @CrossOrigin(origins = "*")
+  @RequestMapping("/list-qos-policies")
+  public ArrayList<OpenStackQoSPolicy> listQoSPolicies(
       @RequestParam(value = "project", defaultValue = "project_id") String project,
       @RequestParam(value = "vim", defaultValue = "vim_id") String vim) {
     logger.debug("Received QoS policy list request for vim : " + vim + " in project " + project);
