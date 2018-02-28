@@ -880,7 +880,10 @@ public class CoreModule {
             }
           }
         }
-        port_ip_map = tmp_portMap;
+        for (String key : tmp_portMap.keySet()) {
+          port_ip_map.put(key, tmp_portMap.get(key));
+        }
+        //port_ip_map = tmp_portMap;
         // Collect information about the compute nodes...
         for (Server s : os_client.compute().servers().list()) {
           for (String vnfci_id : vnfci_name_map.keySet()) {
