@@ -299,7 +299,7 @@ public class NeutronQoSExecutor implements Runnable {
               + ref.getQuality().name()
               + " is the same as defined in Openstack Neutron");
     } else {
-      // TODO : Add a configuration parameter telling us what to do , ignore the difference or update bandwidth rule
+      // TODO : Add a openbaton parameter telling us what to do , ignore the difference or update bandwidth rule
       logger.warn(
           "        The QoS policy "
               + ref.getQuality().name()

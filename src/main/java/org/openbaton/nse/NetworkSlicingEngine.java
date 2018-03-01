@@ -18,7 +18,8 @@
 
 package org.openbaton.nse;
 
-import org.openbaton.nse.configuration.OpenbatonConfiguration;
+import org.openbaton.nse.openbaton.OpenBatonTools;
+import org.openbaton.sdk.NFVORequestor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,7 +33,8 @@ import org.springframework.context.annotation.ComponentScan;
 @ComponentScan(basePackages = "org.openbaton.nse")
 public class NetworkSlicingEngine {
 
-  @Autowired private OpenbatonConfiguration openbatonConfiguration;
+  //@Autowired private OpenBatonTools openbatonConfiguration;
+  //@Autowired private NFVORequestor requestor;
 
   protected Logger log = LoggerFactory.getLogger(this.getClass());
 }
