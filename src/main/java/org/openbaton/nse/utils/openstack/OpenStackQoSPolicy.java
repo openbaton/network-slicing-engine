@@ -1,4 +1,4 @@
-package org.openbaton.nse.utils;
+package org.openbaton.nse.utils.openstack;
 
 import org.json.JSONArray;
 import org.json.JSONObject;

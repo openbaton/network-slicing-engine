@@ -16,16 +16,14 @@
  *
  */
 
-package org.openbaton.nse.openbaton;
+package org.openbaton.nse.utils.openbaton;
 
 import org.openbaton.catalogue.nfvo.VimInstance;
 import org.openbaton.catalogue.security.Project;
 import org.openbaton.exceptions.NotFoundException;
 import org.openbaton.nse.properties.NfvoProperties;
-import org.openbaton.nse.utils.Utils;
 import org.openbaton.sdk.NFVORequestor;
 import org.openbaton.sdk.api.exception.SDKException;
-import org.openbaton.sdk.api.rest.VimInstanceAgent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +31,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -42,16 +42,19 @@ import java.util.Map;
 @Configuration
 public class OpenBatonTools {
 
-  @Autowired private NfvoProperties nfvoProperties;
+  @SuppressWarnings("unused")
+  @Autowired
+  private NfvoProperties nfvoProperties;
 
   private static Logger logger = LoggerFactory.getLogger(OpenBatonTools.class);
 
   // This bean is actually used to instantiate
 
   @Bean
+  @SuppressWarnings("unused")
   public NFVORequestor getNFVORequestor()
       throws SDKException, NotFoundException, FileNotFoundException {
-    if (!Utils.isNfvoStarted(nfvoProperties.getIp(), nfvoProperties.getPort())) {
+    if (!isNfvoStarted(nfvoProperties.getIp(), nfvoProperties.getPort())) {
       logger.error("NFVO is not available");
       System.exit(1);
     }
@@ -88,12 +91,12 @@ public class OpenBatonTools {
 
   // Function to extract credentials directly out of a virtualized infrastructure manager ( VIM )
   public Map<String, String> getDatacenterCredentials(NFVORequestor requestor, String vim_id) {
-    Map<String, String> cred = new HashMap<String, String>();
+    Map<String, String> cred = new HashMap<>();
     // What we want to archieve is to list all machines and know to which vim-instance they belong
     VimInstance v = null;
     try {
       //logger.debug("trying to use viminstanceagent");
-      VimInstanceAgent agent = requestor.getVimInstanceAgent();
+      //VimInstanceAgent agent = requestor.getVimInstanceAgent();
       //logger.debug("listing all vim-instances");
       //logger.debug(requestor.getVimInstanceAgent().findAll().toString());
 
@@ -156,5 +159,42 @@ public class OpenBatonTools {
       logger.error("Problem instantiating NFVORequestor for project " + project_id);
     }
     return requestor;
+  }
+
+  public static boolean isNfvoStarted(String ip, String port) {
+    int i = 600;
+    logger.info("Testing if NFVO is available...");
+    while (!available(ip, port)) {
+      logger.warn(
+          "NFVO is not available at "
+              + ip
+              + ":"
+              + port
+              + ". Waiting for "
+              + i
+              + "s before terminating the VNFM");
+      i--;
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
+      if (i <= 0) {
+        return false;
+      }
+    }
+    logger.info("NFVO is listening at " + ip + ":" + port);
+    return true;
+  }
+
+  public static boolean available(String ip, String port) {
+    try {
+      Socket s = new Socket(ip, Integer.parseInt(port));
+      s.close();
+      return true;
+    } catch (IOException ex) {
+      // The remote host is not listening on this port
+      return false;
+    }
   }
 }

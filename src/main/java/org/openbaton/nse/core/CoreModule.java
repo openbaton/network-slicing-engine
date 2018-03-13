@@ -16,21 +16,23 @@
  *
  */
 
-package org.openbaton.nse.beans.core;
+package org.openbaton.nse.core;
 
 import org.openbaton.catalogue.mano.descriptor.VirtualDeploymentUnit;
 import org.openbaton.catalogue.mano.record.VNFCInstance;
 import org.openbaton.catalogue.mano.record.VirtualNetworkFunctionRecord;
 import org.openbaton.catalogue.nfvo.VimInstance;
-import org.openbaton.nse.beans.adapters.openstack.NeutronQoSExecutor;
-import org.openbaton.nse.beans.adapters.openstack.NeutronQoSHandler;
-import org.openbaton.nse.beans.adapters.openstack.OpenStackTools;
-import org.openbaton.nse.openbaton.OpenBatonTools;
+import org.openbaton.nse.adapters.openstack.NeutronQoSExecutor;
+import org.openbaton.nse.adapters.openstack.NeutronQoSHandler;
+import org.openbaton.nse.api.Api;
+import org.openbaton.nse.utils.openstack.OpenStackTools;
+import org.openbaton.nse.utils.openbaton.OpenBatonTools;
 import org.openbaton.nse.properties.NseProperties;
 import org.openbaton.nse.properties.NfvoProperties;
 import org.openbaton.sdk.NFVORequestor;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.model.compute.Server;
+import org.openstack4j.model.network.Port;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,41 +43,45 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import javax.annotation.PostConstruct;
-
 /**
  * Created by maa on 02.12.15. modified by lgr on 20.07.17
  */
 @Service
 public class CoreModule {
 
-  //@Autowired private CmHandler handler;
-  private Logger logger;
-  private PriorityQueue<String> nsr_id_queue = new PriorityQueue<String>();
-  private Map<String, Set<VirtualNetworkFunctionRecord>> nsr_vnfrs_map =
-      new HashMap<String, Set<VirtualNetworkFunctionRecord>>();
+  private static Logger logger = LoggerFactory.getLogger(CoreModule.class);
+
+  private PriorityQueue<String> nsr_id_queue = new PriorityQueue<>();
+  private Map<String, Set<VirtualNetworkFunctionRecord>> nsr_vnfrs_map = new HashMap<>();
   private NFVORequestor requestor;
   private final ScheduledExecutorService qtScheduler = Executors.newScheduledThreadPool(1);
 
-  private NeutronQoSHandler neutron_handler = new NeutronQoSHandler();
+  @SuppressWarnings("unused")
+  @Autowired
+  private NeutronQoSHandler neutron_handler;
 
-  //private OpenStackOverview osOverview = new OpenStackOverview();
-  private Api api = new Api();
+  @SuppressWarnings("unused")
+  @Autowired
+  private OpenStackTools osTools;
 
-  private OpenStackTools osTools = new OpenStackTools();
-  private OpenBatonTools obTools = new OpenBatonTools();
+  @SuppressWarnings("unused")
+  @Autowired
+  private OpenBatonTools obTools;
 
-  @Autowired private NfvoProperties nfvo_configuration;
-  @Autowired private NseProperties nse_configuration;
+  @SuppressWarnings("unused")
+  @Autowired
+  private Api api;
 
-  @PostConstruct
-  private void init() {
-    this.logger = LoggerFactory.getLogger(this.getClass());
-  }
+  @SuppressWarnings("unused")
+  @Autowired
+  private NfvoProperties nfvo_configuration;
 
-  // Function to be called if there a NSR has been scaled, deleted or instantiated
-  public void notifyChange() {
-    api.notifyChange();
+  @SuppressWarnings("unused")
+  @Autowired
+  private NseProperties nse_configuration;
+
+  public void notifyChange(String vim_id) {
+    api.notifyChange(vim_id);
   }
 
   /*
@@ -89,8 +95,6 @@ public class CoreModule {
   public void addQos(Set<VirtualNetworkFunctionRecord> vnfrs, String nsrId) {
     ArrayList<VirtualNetworkFunctionRecord> vnfr_list = api.getVnfr_list();
     ArrayList<VimInstance> vim_list = api.getVim_list();
-
-    // Generate a new hash
     // Lets put the received vnfrs into a dictionary and the nsr ids into a queue
     // to avoid running multiple times the same tasks
     logger.debug("There are currently " + nsr_id_queue.size() + " NSRs in the processing queue");
@@ -98,12 +102,11 @@ public class CoreModule {
       nsr_vnfrs_map.put(nsrId, vnfrs);
       nsr_id_queue.add(nsrId);
     } else {
-      logger.warn("NSR with id " + nsrId + " was already added to the processing queue");
+      //logger.warn("NSR with id " + nsrId + " was already added to the processing queue");
       return;
     }
 
-    Map<String, Set<VirtualNetworkFunctionRecord>> vim_vnfrs_map =
-        new HashMap<String, Set<VirtualNetworkFunctionRecord>>();
+    Map<String, Set<VirtualNetworkFunctionRecord>> vim_vnfrs_map = new HashMap<>();
     // simple check each nsr in the queue
     Iterator itr = nsr_id_queue.iterator();
     while (itr.hasNext()) {
@@ -143,8 +146,7 @@ public class CoreModule {
               vim_vnfrs_map.get(vnfci.getVim_id()).add(vnfr);
             } else {
               // create the new set accordingly
-              Set<VirtualNetworkFunctionRecord> tmp_set =
-                  new HashSet<VirtualNetworkFunctionRecord>();
+              Set<VirtualNetworkFunctionRecord> tmp_set = new HashSet<>();
               tmp_set.add(vnfr);
               vim_vnfrs_map.put(vnfci.getVim_id(), tmp_set);
               // create a new vim entry
@@ -168,7 +170,6 @@ public class CoreModule {
         3000);
     // Now we collect the credential information for each vim and pass over the
     // set of vnfrs to be processed
-    Map<String, VimInstance> vim_cred_map = new HashMap<String, VimInstance>();
     logger.debug(
         "    The NSR with id :"
             + nsrId
@@ -198,6 +199,7 @@ public class CoreModule {
     }
   }
 
+  @SuppressWarnings("unused")
   public void removeQos(Set<VirtualNetworkFunctionRecord> vnfrs, String nsrId) {
     //logger.debug("Creating REMOVE Thread");
     //logger.debug("Neutron does delete the ports and the applied QoS on machine deletion, will not create REMOVE Thread");
@@ -208,11 +210,11 @@ public class CoreModule {
     Map<String, String> creds = obTools.getDatacenterCredentials(requestor, key);
     OSClient os = osTools.getOSClient(v);
     String token = osTools.getAuthToken(os, v);
-    String neutron_access = osTools.getNeutronEndpoint(v, token);
+    String neutron_access = osTools.getNeutronEndpoint(v);
     // Add the neutron related information into our credential map
     creds.put("neutron", neutron_access);
-    logger.debug("    Collecting OpenStack Neutron Ports");
-    List<org.openstack4j.model.network.Port> portList = osTools.getNeutronPorts(os);
+    //logger.debug("    Collecting OpenStack Neutron Ports");
+    List<? extends Port> portList = osTools.getNeutronPorts(os);
     logger.debug(
         "    Starting thread to handle VNFRs using VIM : "
             + v.getName()
@@ -223,7 +225,7 @@ public class CoreModule {
 
   private Map<String, String> getVnfHostNameComputeNodeMap(
       OSClient os, Set<VirtualNetworkFunctionRecord> vnfrs) {
-    Map<String, String> vnf_host_compute_map = new HashMap<String, String>();
+    Map<String, String> vnf_host_compute_map = new HashMap<>();
     for (VirtualNetworkFunctionRecord vnfr : vnfrs) {
       for (VirtualDeploymentUnit vdu : vnfr.getVdu()) {
         for (VNFCInstance vnfci : vdu.getVnfc_instance()) {
@@ -239,8 +241,9 @@ public class CoreModule {
     return vnf_host_compute_map;
   }
 
+  @SuppressWarnings("unused")
   private Map<String, String> getRestHostNameComputeNodeMap(OSClient os) {
-    Map<String, String> host_compute_map = new HashMap<String, String>();
+    Map<String, String> host_compute_map = new HashMap<>();
     for (Server s : os.compute().servers().list()) {
       host_compute_map.put(s.getName(), s.getHypervisorHostname());
     }
@@ -255,7 +258,7 @@ public class CoreModule {
       String token,
       VimInstance v,
       Map<String, String> creds,
-      List<org.openstack4j.model.network.Port> portList) {
+      List<? extends Port> portList) {
     NeutronQoSExecutor aqe =
         new NeutronQoSExecutor(
             vim_vnfrs_map.get(key),

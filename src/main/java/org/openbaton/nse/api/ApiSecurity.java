@@ -1,4 +1,4 @@
-package org.openbaton.nse.beans.core;
+package org.openbaton.nse.api;
 
 /**
  * Created by lgr on 2/1/18.
