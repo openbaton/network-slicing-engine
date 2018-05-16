@@ -241,7 +241,7 @@ public class NeutronQoSHandler {
     // TODO : catch null objects
     JSONObject tmp;
     if (id.equals("no_policy")) {
-      tmp = new JSONObject("{\"port\":{\"qos_policy_id\":\"" + id + "\"}}");
+      tmp = new JSONObject("{\"port\":{\"qos_policy_id\":null}}");
     } else {
       tmp = new JSONObject("{\"port\":{\"qos_policy_id\":\"" + id + "\"}}");
     }
