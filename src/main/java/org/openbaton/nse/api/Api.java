@@ -84,6 +84,7 @@ public class Api {
       if (ext_vims.contains(external_vim_id)) {
         //logger.debug("Generating new hash for : " + int_vim_id);
         vim_hashes.put(int_vim_id, UUID.randomUUID().toString());
+        this.updateNetworkOverview();
         return;
       }
     }
@@ -1006,48 +1007,51 @@ public class Api {
       for (Integer i : node_map.keySet()) {
         if (!vims_no_update.contains(i)) {
           // clear old entries
-          String new_hash = UUID.randomUUID().toString();
-          vim_hash_map.put(i, new_hash);
-          vim_hashes.put(i, new_hash);
-          OSClient os_client = osTools.getOSClient(os_vim_map.get(i));
-          HashMap<String, ArrayList<String>> tmp_portMap =
-              osTools.getPortIps(os_client, ips_to_be_checked.get(i));
-          // remove all old entries
-          if (port_id_map.containsKey(i)) {
-            for (String key : port_id_map.get(i)) {
-              port_ip_map.remove(key);
-              //net_name_map.remove(port_net_map.get(key));
-              port_net_map.remove(key);
+          //String new_hash = UUID.randomUUID().toString();
+          //vim_hash_map.put(i, new_hash);
+          //vim_hashes.put(i, new_hash);
+          if (os_vim_map.containsKey(i)) {
+            OSClient os_client = osTools.getOSClient(os_vim_map.get(i));
+            HashMap<String, ArrayList<String>> tmp_portMap =
+                osTools.getPortIps(os_client, ips_to_be_checked.get(i));
+            //logger.debug(tmp_portMap.toString());
+            // remove all old entries
+            if (port_id_map.containsKey(i)) {
+              for (String key : port_id_map.get(i)) {
+                port_ip_map.remove(key);
+                //net_name_map.remove(port_net_map.get(key));
+                port_net_map.remove(key);
+              }
+              // remove entry itself
+              port_id_map.remove(i);
             }
-            // remove entry itself
-            port_id_map.remove(i);
-          }
-          if (tmp_portMap != null) {
-            for (String p_id : tmp_portMap.keySet()) {
-              ArrayList<String> tmp_port_ids;
-              if (port_id_map.containsKey(i)) {
-                tmp_port_ids = port_id_map.get(i);
-                if (!tmp_port_ids.contains(p_id)) {
+            if (tmp_portMap != null) {
+              for (String p_id : tmp_portMap.keySet()) {
+                ArrayList<String> tmp_port_ids;
+                if (port_id_map.containsKey(i)) {
+                  tmp_port_ids = port_id_map.get(i);
+                  if (!tmp_port_ids.contains(p_id)) {
+                    tmp_port_ids.add(p_id);
+                  }
+                } else {
+                  tmp_port_ids = new ArrayList<>();
                   tmp_port_ids.add(p_id);
+                  port_id_map.put(i, tmp_port_ids);
                 }
-              } else {
-                tmp_port_ids = new ArrayList<>();
-                tmp_port_ids.add(p_id);
-                port_id_map.put(i, tmp_port_ids);
               }
             }
-          }
-          for (String key : tmp_portMap.keySet()) {
-            port_ip_map.put(key, tmp_portMap.get(key));
-          }
-          //port_ip_map = tmp_portMap;
-          // Collect information about the compute nodes...
-          // TODO : Clear the vnfci_hypervisor map as done for the port ip + port id + port net maps
-          for (Server s : os_client.compute().servers().list()) {
-            for (String vnfci_id : vnfci_name_map.keySet()) {
-              if (vnfci_name_map.get(vnfci_id).equals(s.getName())) {
-                //vnf_host_compute_map.put(vnfr.getName(), s.getHypervisorHostname());
-                vnfci_hypervisor_map.put(s.getName(), s.getHypervisorHostname());
+            for (String key : tmp_portMap.keySet()) {
+              port_ip_map.put(key, tmp_portMap.get(key));
+            }
+            //port_ip_map = tmp_portMap;
+            // Collect information about the compute nodes...
+            // TODO : Clear the vnfci_hypervisor map as done for the port ip + port id + port net maps
+            for (Server s : os_client.compute().servers().list()) {
+              for (String vnfci_id : vnfci_name_map.keySet()) {
+                if (vnfci_name_map.get(vnfci_id).equals(s.getName())) {
+                  //vnf_host_compute_map.put(vnfr.getName(), s.getHypervisorHostname());
+                  vnfci_hypervisor_map.put(s.getName(), s.getHypervisorHostname());
+                }
               }
             }
           }
@@ -1058,12 +1062,14 @@ public class Api {
       // TODO : collect information about the os networks, to be able to integrate with the Open Baton view on resources
       for (Integer i : port_id_map.keySet()) {
         if (!vims_no_update.contains(i)) {
-          OSClient os_client = osTools.getOSClient(os_vim_map.get(i));
-          for (String p_id : port_id_map.get(i)) {
-            // TODO : avoid contacting the infrastructure to often, maybe there is a better way of collecting all information in before
-            Port p = os_client.networking().port().get(p_id);
-            if (p != null) {
-              port_net_map.put(p_id, p.getNetworkId());
+          if (os_vim_map.containsKey(i)) {
+            OSClient os_client = osTools.getOSClient(os_vim_map.get(i));
+            for (String p_id : port_id_map.get(i)) {
+              // TODO : avoid contacting the infrastructure to often, maybe there is a better way of collecting all information in before
+              Port p = os_client.networking().port().get(p_id);
+              if (p != null) {
+                port_net_map.put(p_id, p.getNetworkId());
+              }
             }
           }
           //for(Network n : tmp_os.networking().network().list()){
@@ -1081,6 +1087,15 @@ public class Api {
       this.osOverview.setOs_net_names(net_name_map);
       this.osOverview.setVnfci_hypervisors(vnfci_hypervisor_map);
       this.osOverview.setVlr_ext_networks(vlr_ext_net_map);
+
+      for (Integer i : node_map.keySet()) {
+        if (!vims_no_update.contains(i)) {
+          // clear old entries
+          String new_hash = UUID.randomUUID().toString();
+          vim_hash_map.put(i, new_hash);
+          vim_hashes.put(i, new_hash);
+        }
+      }
 
       this.osOverview.setVim_hashes(vim_hash_map);
 

@@ -70,7 +70,7 @@ public class NeutronQoSHandler {
         connection.setRequestProperty("Accept", "application/json");
         connection.setRequestProperty("Content-Type", "application/json");
       } else {
-        logger.error("No method defined for http request while contacting neutron");
+        logger.debug("No method defined for http request while contacting neutron");
         //return null;
       }
       connection.setDoOutput(true);
