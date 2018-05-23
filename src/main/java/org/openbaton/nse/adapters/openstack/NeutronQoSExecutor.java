@@ -43,12 +43,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
 
 /**
  * Created by lgr on 20/09/16. modified by lgr on 20.07.17
  */
 @Service
-public class NeutronQoSExecutor implements Runnable {
+public class NeutronQoSExecutor implements Runnable, Callable {
 
   @SuppressWarnings("unused")
   public NeutronQoSExecutor() {}
@@ -613,5 +614,10 @@ public class NeutronQoSExecutor implements Runnable {
       }
     }
     return res;
+  }
+
+  @Override
+  public Object call() throws Exception {
+    return null;
   }
 }

@@ -39,9 +39,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 /**
  * Created by maa on 02.12.15. modified by lgr on 20.07.17
@@ -259,7 +257,7 @@ public class CoreModule {
       VimInstance v,
       Map<String, String> creds,
       List<? extends Port> portList) {
-    NeutronQoSExecutor aqe =
+    Callable<NeutronQoSExecutor> aqe =
         new NeutronQoSExecutor(
             vim_vnfrs_map.get(key),
             neutron_handler,
@@ -269,6 +267,13 @@ public class CoreModule {
             portList,
             osTools.getComputeNodeMap(os),
             this.getVnfHostNameComputeNodeMap(os, vim_vnfrs_map.get(key)));
-    qtScheduler.schedule(aqe, 1, TimeUnit.SECONDS);
+    Collection<Callable<NeutronQoSExecutor>> tasklist = new ArrayList<>();
+    tasklist.add(aqe);
+    try {
+      qtScheduler.schedule(aqe, 2, TimeUnit.SECONDS);
+      qtScheduler.invokeAll(tasklist);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
   }
 }

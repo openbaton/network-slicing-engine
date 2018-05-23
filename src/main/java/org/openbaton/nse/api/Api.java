@@ -43,8 +43,11 @@ import java.util.*;
 public class Api {
   private static Logger logger = LoggerFactory.getLogger(Api.class);
   private NetworkOverview osOverview = new NetworkOverview();
-  private ArrayList<VimInstance> vim_list = new ArrayList<>();
-  private ArrayList<VirtualNetworkFunctionRecord> vnfr_list = new ArrayList<>();
+  //private ArrayList<VimInstance> vim_list = new ArrayList<>();
+  private final List<VimInstance> vim_list = Collections.synchronizedList(new ArrayList<>());
+  //private ArrayList<VirtualNetworkFunctionRecord> vnfr_list = new ArrayList<>();
+  private final List<VirtualNetworkFunctionRecord> vnfr_list =
+      Collections.synchronizedList(new ArrayList<>());
 
   @SuppressWarnings("unused")
   @Autowired
@@ -70,11 +73,11 @@ public class Api {
   private NseProperties nse_configuration;
 
   public ArrayList<VirtualNetworkFunctionRecord> getVnfr_list() {
-    return vnfr_list;
+    return (ArrayList<VirtualNetworkFunctionRecord>) vnfr_list;
   }
 
   public ArrayList<VimInstance> getVim_list() {
-    return vim_list;
+    return (ArrayList<VimInstance>) vim_list;
   }
 
   // Function so signal the API that there is the need to pull latest data from a VIM instance
@@ -117,37 +120,40 @@ public class Api {
             + net
             + " policy : "
             + policy);
-    for (VimInstance v : vim_list) {
-      if (v.getId().equals(vim)) {
-        if (v.getType().equals("openstack")) {
-          NFVORequestor nfvoRequestor;
-          try {
-            nfvoRequestor =
-                new NFVORequestor(
-                    "nse",
-                    project,
-                    nfvo_configuration.getIp(),
-                    nfvo_configuration.getPort(),
-                    "1",
-                    false,
-                    nse_configuration.getService().getKey());
-            OSClient tmp_os = osTools.getOSClient(v);
-            String token = osTools.getAuthToken(tmp_os, v);
-            String neutron_access = osTools.getNeutronEndpoint(v);
-            Map<String, String> creds = obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
-            creds.put("neutron", neutron_access);
-            NeutronQoSExecutor neutron_executor =
-                new NeutronQoSExecutor(neutron_handler, token, v, creds);
-            neutron_executor.assignQoSPolicyToNetwork(net, policy);
-          } catch (SDKException e) {
-            e.printStackTrace();
+    synchronized (vim_list) {
+      for (VimInstance v : vim_list) {
+        if (v.getId().equals(vim)) {
+          if (v.getType().equals("openstack")) {
+            NFVORequestor nfvoRequestor;
+            try {
+              nfvoRequestor =
+                  new NFVORequestor(
+                      "nse",
+                      project,
+                      nfvo_configuration.getIp(),
+                      nfvo_configuration.getPort(),
+                      "1",
+                      false,
+                      nse_configuration.getService().getKey());
+              OSClient tmp_os = osTools.getOSClient(v);
+              String token = osTools.getAuthToken(tmp_os, v);
+              String neutron_access = osTools.getNeutronEndpoint(v);
+              Map<String, String> creds =
+                  obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
+              creds.put("neutron", neutron_access);
+              NeutronQoSExecutor neutron_executor =
+                  new NeutronQoSExecutor(neutron_handler, token, v, creds);
+              neutron_executor.assignQoSPolicyToNetwork(net, policy);
+            } catch (SDKException e) {
+              e.printStackTrace();
+            }
+          } else {
+            logger.warn("VIM type " + v.getType() + " not supported yet");
           }
-        } else {
-          logger.warn("VIM type " + v.getType() + " not supported yet");
         }
       }
+      this.notifyChange(vim);
     }
-    this.notifyChange(vim);
   }
 
   // Method to be called by the NSE-GUI to apply bandwidth limitations directly on a port
@@ -168,37 +174,40 @@ public class Api {
             + port
             + " policy : "
             + policy);
-    for (VimInstance v : vim_list) {
-      if (v.getId().equals(vim)) {
-        if (v.getType().equals("openstack")) {
-          NFVORequestor nfvoRequestor;
-          try {
-            nfvoRequestor =
-                new NFVORequestor(
-                    "nse",
-                    project,
-                    nfvo_configuration.getIp(),
-                    nfvo_configuration.getPort(),
-                    "1",
-                    false,
-                    nse_configuration.getService().getKey());
-            OSClient tmp_os = osTools.getOSClient(v);
-            String token = osTools.getAuthToken(tmp_os, v);
-            String neutron_access = osTools.getNeutronEndpoint(v);
-            Map<String, String> creds = obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
-            creds.put("neutron", neutron_access);
-            NeutronQoSExecutor neutron_executor =
-                new NeutronQoSExecutor(neutron_handler, token, v, creds);
-            neutron_executor.assignQoSPolicyToPort(port, policy);
-          } catch (SDKException e) {
-            e.printStackTrace();
+    synchronized (vim_list) {
+      for (VimInstance v : vim_list) {
+        if (v.getId().equals(vim)) {
+          if (v.getType().equals("openstack")) {
+            NFVORequestor nfvoRequestor;
+            try {
+              nfvoRequestor =
+                  new NFVORequestor(
+                      "nse",
+                      project,
+                      nfvo_configuration.getIp(),
+                      nfvo_configuration.getPort(),
+                      "1",
+                      false,
+                      nse_configuration.getService().getKey());
+              OSClient tmp_os = osTools.getOSClient(v);
+              String token = osTools.getAuthToken(tmp_os, v);
+              String neutron_access = osTools.getNeutronEndpoint(v);
+              Map<String, String> creds =
+                  obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
+              creds.put("neutron", neutron_access);
+              NeutronQoSExecutor neutron_executor =
+                  new NeutronQoSExecutor(neutron_handler, token, v, creds);
+              neutron_executor.assignQoSPolicyToPort(port, policy);
+            } catch (SDKException e) {
+              e.printStackTrace();
+            }
+          } else {
+            logger.warn("VIM type " + v.getType() + " not supported yet");
           }
-        } else {
-          logger.warn("VIM type " + v.getType() + " not supported yet");
         }
       }
+      this.notifyChange(vim);
     }
-    this.notifyChange(vim);
   }
 
   // Method to be called by the NSE-GUI to delete QoS policies
@@ -216,37 +225,40 @@ public class Api {
             + project
             + " policy : "
             + id);
-    for (VimInstance v : vim_list) {
-      if (v.getId().equals(vim)) {
-        if (v.getType().equals("openstack")) {
-          NFVORequestor nfvoRequestor;
-          try {
-            nfvoRequestor =
-                new NFVORequestor(
-                    "nse",
-                    project,
-                    nfvo_configuration.getIp(),
-                    nfvo_configuration.getPort(),
-                    "1",
-                    false,
-                    nse_configuration.getService().getKey());
-            OSClient tmp_os = osTools.getOSClient(v);
-            String token = osTools.getAuthToken(tmp_os, v);
-            String neutron_access = osTools.getNeutronEndpoint(v);
-            Map<String, String> creds = obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
-            creds.put("neutron", neutron_access);
-            NeutronQoSExecutor neutron_executor =
-                new NeutronQoSExecutor(neutron_handler, token, v, creds);
-            neutron_executor.deleteQoSPolicy(id);
-          } catch (SDKException e) {
-            e.printStackTrace();
+    synchronized (vim_list) {
+      for (VimInstance v : vim_list) {
+        if (v.getId().equals(vim)) {
+          if (v.getType().equals("openstack")) {
+            NFVORequestor nfvoRequestor;
+            try {
+              nfvoRequestor =
+                  new NFVORequestor(
+                      "nse",
+                      project,
+                      nfvo_configuration.getIp(),
+                      nfvo_configuration.getPort(),
+                      "1",
+                      false,
+                      nse_configuration.getService().getKey());
+              OSClient tmp_os = osTools.getOSClient(v);
+              String token = osTools.getAuthToken(tmp_os, v);
+              String neutron_access = osTools.getNeutronEndpoint(v);
+              Map<String, String> creds =
+                  obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
+              creds.put("neutron", neutron_access);
+              NeutronQoSExecutor neutron_executor =
+                  new NeutronQoSExecutor(neutron_handler, token, v, creds);
+              neutron_executor.deleteQoSPolicy(id);
+            } catch (SDKException e) {
+              e.printStackTrace();
+            }
+          } else {
+            logger.warn("VIM type " + v.getType() + " not supported yet");
           }
-        } else {
-          logger.warn("VIM type " + v.getType() + " not supported yet");
         }
       }
+      this.notifyChange(vim);
     }
-    this.notifyChange(vim);
   }
 
   // Method to be called by the NSE-GUI to delete QoS policies
@@ -267,37 +279,40 @@ public class Api {
             + policy_id
             + " rule : "
             + rule_id);
-    for (VimInstance v : vim_list) {
-      if (v.getId().equals(vim)) {
-        if (v.getType().equals("openstack")) {
-          NFVORequestor nfvoRequestor;
-          try {
-            nfvoRequestor =
-                new NFVORequestor(
-                    "nse",
-                    project,
-                    nfvo_configuration.getIp(),
-                    nfvo_configuration.getPort(),
-                    "1",
-                    false,
-                    nse_configuration.getService().getKey());
-            OSClient tmp_os = osTools.getOSClient(v);
-            String token = osTools.getAuthToken(tmp_os, v);
-            String neutron_access = osTools.getNeutronEndpoint(v);
-            Map<String, String> creds = obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
-            creds.put("neutron", neutron_access);
-            NeutronQoSExecutor neutron_executor =
-                new NeutronQoSExecutor(neutron_handler, token, v, creds);
-            neutron_executor.deleteBandwidthRule(rule_id, policy_id);
-          } catch (SDKException e) {
-            e.printStackTrace();
+    synchronized (vim_list) {
+      for (VimInstance v : vim_list) {
+        if (v.getId().equals(vim)) {
+          if (v.getType().equals("openstack")) {
+            NFVORequestor nfvoRequestor;
+            try {
+              nfvoRequestor =
+                  new NFVORequestor(
+                      "nse",
+                      project,
+                      nfvo_configuration.getIp(),
+                      nfvo_configuration.getPort(),
+                      "1",
+                      false,
+                      nse_configuration.getService().getKey());
+              OSClient tmp_os = osTools.getOSClient(v);
+              String token = osTools.getAuthToken(tmp_os, v);
+              String neutron_access = osTools.getNeutronEndpoint(v);
+              Map<String, String> creds =
+                  obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
+              creds.put("neutron", neutron_access);
+              NeutronQoSExecutor neutron_executor =
+                  new NeutronQoSExecutor(neutron_handler, token, v, creds);
+              neutron_executor.deleteBandwidthRule(rule_id, policy_id);
+            } catch (SDKException e) {
+              e.printStackTrace();
+            }
+          } else {
+            logger.warn("VIM type " + v.getType() + " not supported yet");
           }
-        } else {
-          logger.warn("VIM type " + v.getType() + " not supported yet");
         }
       }
+      this.notifyChange(vim);
     }
-    this.notifyChange(vim);
   }
 
   // Method to be called by the NSE-GUI to create QoS policies
@@ -333,37 +348,40 @@ public class Api {
     rule.setMax_burst_kbps(new Integer(burst));
     rule.setType(type);
     rule.setMax_kbps(new Integer(kbps));
-    for (VimInstance v : vim_list) {
-      if (v.getId().equals(vim)) {
-        if (v.getType().equals("openstack")) {
-          NFVORequestor nfvoRequestor;
-          try {
-            nfvoRequestor =
-                new NFVORequestor(
-                    "nse",
-                    project,
-                    nfvo_configuration.getIp(),
-                    nfvo_configuration.getPort(),
-                    "1",
-                    false,
-                    nse_configuration.getService().getKey());
-            OSClient tmp_os = osTools.getOSClient(v);
-            String token = osTools.getAuthToken(tmp_os, v);
-            String neutron_access = osTools.getNeutronEndpoint(v);
-            Map<String, String> creds = obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
-            creds.put("neutron", neutron_access);
-            NeutronQoSExecutor neutron_executor =
-                new NeutronQoSExecutor(neutron_handler, token, v, creds);
-            neutron_executor.createBandwidthRule(rule, id);
-          } catch (SDKException e) {
-            e.printStackTrace();
+    synchronized (vim_list) {
+      for (VimInstance v : vim_list) {
+        if (v.getId().equals(vim)) {
+          if (v.getType().equals("openstack")) {
+            NFVORequestor nfvoRequestor;
+            try {
+              nfvoRequestor =
+                  new NFVORequestor(
+                      "nse",
+                      project,
+                      nfvo_configuration.getIp(),
+                      nfvo_configuration.getPort(),
+                      "1",
+                      false,
+                      nse_configuration.getService().getKey());
+              OSClient tmp_os = osTools.getOSClient(v);
+              String token = osTools.getAuthToken(tmp_os, v);
+              String neutron_access = osTools.getNeutronEndpoint(v);
+              Map<String, String> creds =
+                  obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
+              creds.put("neutron", neutron_access);
+              NeutronQoSExecutor neutron_executor =
+                  new NeutronQoSExecutor(neutron_handler, token, v, creds);
+              neutron_executor.createBandwidthRule(rule, id);
+            } catch (SDKException e) {
+              e.printStackTrace();
+            }
+          } else {
+            logger.warn("VIM type " + v.getType() + " not supported yet");
           }
-        } else {
-          logger.warn("VIM type " + v.getType() + " not supported yet");
         }
       }
+      this.notifyChange(vim);
     }
-    this.notifyChange(vim);
   }
 
   // Method to be called by the NSE-GUI to create QoS policies
@@ -397,37 +415,40 @@ public class Api {
     ArrayList<OpenStackBandwidthRule> rules = new ArrayList<>();
     rules.add(new OpenStackBandwidthRule(burst, kbps, type));
     policy.setRules(rules);
-    for (VimInstance v : vim_list) {
-      if (v.getId().equals(vim)) {
-        if (v.getType().equals("openstack")) {
-          NFVORequestor nfvoRequestor;
-          try {
-            nfvoRequestor =
-                new NFVORequestor(
-                    "nse",
-                    project,
-                    nfvo_configuration.getIp(),
-                    nfvo_configuration.getPort(),
-                    "1",
-                    false,
-                    nse_configuration.getService().getKey());
-            OSClient tmp_os = osTools.getOSClient(v);
-            String token = osTools.getAuthToken(tmp_os, v);
-            String neutron_access = osTools.getNeutronEndpoint(v);
-            Map<String, String> creds = obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
-            creds.put("neutron", neutron_access);
-            NeutronQoSExecutor neutron_executor =
-                new NeutronQoSExecutor(neutron_handler, token, v, creds);
-            neutron_executor.createQoSPolicy(policy);
-          } catch (SDKException e) {
-            e.printStackTrace();
+    synchronized (vim_list) {
+      for (VimInstance v : vim_list) {
+        if (v.getId().equals(vim)) {
+          if (v.getType().equals("openstack")) {
+            NFVORequestor nfvoRequestor;
+            try {
+              nfvoRequestor =
+                  new NFVORequestor(
+                      "nse",
+                      project,
+                      nfvo_configuration.getIp(),
+                      nfvo_configuration.getPort(),
+                      "1",
+                      false,
+                      nse_configuration.getService().getKey());
+              OSClient tmp_os = osTools.getOSClient(v);
+              String token = osTools.getAuthToken(tmp_os, v);
+              String neutron_access = osTools.getNeutronEndpoint(v);
+              Map<String, String> creds =
+                  obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
+              creds.put("neutron", neutron_access);
+              NeutronQoSExecutor neutron_executor =
+                  new NeutronQoSExecutor(neutron_handler, token, v, creds);
+              neutron_executor.createQoSPolicy(policy);
+            } catch (SDKException e) {
+              e.printStackTrace();
+            }
+          } else {
+            logger.warn("VIM type " + v.getType() + " not supported yet");
           }
-        } else {
-          logger.warn("VIM type " + v.getType() + " not supported yet");
         }
       }
+      this.notifyChange(vim);
     }
-    this.notifyChange(vim);
   }
 
   // Method to be called by the NSE-GUI to list networks
@@ -439,38 +460,41 @@ public class Api {
       @RequestParam(value = "vim", defaultValue = "vim_id") String vim) {
     logger.debug("Received port list request for vim : " + vim + " in project " + project);
     ArrayList<OpenStackPort> port_list = new ArrayList<>();
-    for (VimInstance v : vim_list) {
-      if (v.getId().equals(vim)) {
-        if (v.getType().equals("openstack")) {
-          NFVORequestor nfvoRequestor;
-          try {
-            nfvoRequestor =
-                new NFVORequestor(
-                    "nse",
-                    project,
-                    nfvo_configuration.getIp(),
-                    nfvo_configuration.getPort(),
-                    "1",
-                    false,
-                    nse_configuration.getService().getKey());
+    synchronized (vim_list) {
+      for (VimInstance v : vim_list) {
+        if (v.getId().equals(vim)) {
+          if (v.getType().equals("openstack")) {
+            NFVORequestor nfvoRequestor;
+            try {
+              nfvoRequestor =
+                  new NFVORequestor(
+                      "nse",
+                      project,
+                      nfvo_configuration.getIp(),
+                      nfvo_configuration.getPort(),
+                      "1",
+                      false,
+                      nse_configuration.getService().getKey());
 
-            OSClient tmp_os = osTools.getOSClient(v);
-            String token = osTools.getAuthToken(tmp_os, v);
-            String neutron_access = osTools.getNeutronEndpoint(v);
-            Map<String, String> creds = obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
-            creds.put("neutron", neutron_access);
-            NeutronQoSExecutor neutron_executor =
-                new NeutronQoSExecutor(neutron_handler, token, v, creds);
-            port_list = neutron_executor.listPorts();
-          } catch (SDKException e) {
-            e.printStackTrace();
+              OSClient tmp_os = osTools.getOSClient(v);
+              String token = osTools.getAuthToken(tmp_os, v);
+              String neutron_access = osTools.getNeutronEndpoint(v);
+              Map<String, String> creds =
+                  obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
+              creds.put("neutron", neutron_access);
+              NeutronQoSExecutor neutron_executor =
+                  new NeutronQoSExecutor(neutron_handler, token, v, creds);
+              port_list = neutron_executor.listPorts();
+            } catch (SDKException e) {
+              e.printStackTrace();
+            }
+          } else {
+            logger.warn("VIM type " + v.getType() + " not supported yet");
           }
-        } else {
-          logger.warn("VIM type " + v.getType() + " not supported yet");
         }
       }
+      return port_list;
     }
-    return port_list;
   }
 
   // Method to be called by the NSE-GUI to list networks
@@ -482,38 +506,41 @@ public class Api {
       @RequestParam(value = "vim", defaultValue = "vim_id") String vim) {
     logger.debug("Received network list request for vim : " + vim + " in project " + project);
     ArrayList<OpenStackNetwork> net_list = new ArrayList<>();
-    for (VimInstance v : vim_list) {
-      if (v.getId().equals(vim)) {
-        if (v.getType().equals("openstack")) {
-          NFVORequestor nfvoRequestor;
-          try {
-            nfvoRequestor =
-                new NFVORequestor(
-                    "nse",
-                    project,
-                    nfvo_configuration.getIp(),
-                    nfvo_configuration.getPort(),
-                    "1",
-                    false,
-                    nse_configuration.getService().getKey());
+    synchronized (vim_list) {
+      for (VimInstance v : vim_list) {
+        if (v.getId().equals(vim)) {
+          if (v.getType().equals("openstack")) {
+            NFVORequestor nfvoRequestor;
+            try {
+              nfvoRequestor =
+                  new NFVORequestor(
+                      "nse",
+                      project,
+                      nfvo_configuration.getIp(),
+                      nfvo_configuration.getPort(),
+                      "1",
+                      false,
+                      nse_configuration.getService().getKey());
 
-            OSClient tmp_os = osTools.getOSClient(v);
-            String token = osTools.getAuthToken(tmp_os, v);
-            String neutron_access = osTools.getNeutronEndpoint(v);
-            Map<String, String> creds = obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
-            creds.put("neutron", neutron_access);
-            NeutronQoSExecutor neutron_executor =
-                new NeutronQoSExecutor(neutron_handler, token, v, creds);
-            net_list = neutron_executor.listNetworks();
-          } catch (SDKException e) {
-            e.printStackTrace();
+              OSClient tmp_os = osTools.getOSClient(v);
+              String token = osTools.getAuthToken(tmp_os, v);
+              String neutron_access = osTools.getNeutronEndpoint(v);
+              Map<String, String> creds =
+                  obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
+              creds.put("neutron", neutron_access);
+              NeutronQoSExecutor neutron_executor =
+                  new NeutronQoSExecutor(neutron_handler, token, v, creds);
+              net_list = neutron_executor.listNetworks();
+            } catch (SDKException e) {
+              e.printStackTrace();
+            }
+          } else {
+            logger.warn("VIM type " + v.getType() + " not supported yet");
           }
-        } else {
-          logger.warn("VIM type " + v.getType() + " not supported yet");
         }
       }
+      return net_list;
     }
-    return net_list;
   }
 
   // Method to be called by the NSE-GUI to list QoS policies
@@ -525,38 +552,41 @@ public class Api {
       @RequestParam(value = "vim", defaultValue = "vim_id") String vim) {
     logger.debug("Received list QoS policy list for vim : " + vim + " in project " + project);
     ArrayList<OpenStackQoSPolicy> qos_policy_list = new ArrayList<>();
-    for (VimInstance v : vim_list) {
-      if (v.getId().equals(vim)) {
-        if (v.getType().equals("openstack")) {
-          NFVORequestor nfvoRequestor;
-          try {
-            nfvoRequestor =
-                new NFVORequestor(
-                    "nse",
-                    project,
-                    nfvo_configuration.getIp(),
-                    nfvo_configuration.getPort(),
-                    "1",
-                    false,
-                    nse_configuration.getService().getKey());
+    synchronized (vim_list) {
+      for (VimInstance v : vim_list) {
+        if (v.getId().equals(vim)) {
+          if (v.getType().equals("openstack")) {
+            NFVORequestor nfvoRequestor;
+            try {
+              nfvoRequestor =
+                  new NFVORequestor(
+                      "nse",
+                      project,
+                      nfvo_configuration.getIp(),
+                      nfvo_configuration.getPort(),
+                      "1",
+                      false,
+                      nse_configuration.getService().getKey());
 
-            OSClient tmp_os = osTools.getOSClient(v);
-            String token = osTools.getAuthToken(tmp_os, v);
-            String neutron_access = osTools.getNeutronEndpoint(v);
-            Map<String, String> creds = obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
-            creds.put("neutron", neutron_access);
-            NeutronQoSExecutor neutron_executor =
-                new NeutronQoSExecutor(neutron_handler, token, v, creds);
-            qos_policy_list = neutron_executor.getNeutronQosRules();
-          } catch (SDKException e) {
-            e.printStackTrace();
+              OSClient tmp_os = osTools.getOSClient(v);
+              String token = osTools.getAuthToken(tmp_os, v);
+              String neutron_access = osTools.getNeutronEndpoint(v);
+              Map<String, String> creds =
+                  obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
+              creds.put("neutron", neutron_access);
+              NeutronQoSExecutor neutron_executor =
+                  new NeutronQoSExecutor(neutron_handler, token, v, creds);
+              qos_policy_list = neutron_executor.getNeutronQosRules();
+            } catch (SDKException e) {
+              e.printStackTrace();
+            }
+          } else {
+            logger.warn("VIM type " + v.getType() + " not supported yet");
           }
-        } else {
-          logger.warn("VIM type " + v.getType() + " not supported yet");
         }
       }
+      return qos_policy_list;
     }
-    return qos_policy_list;
   }
 
   // Method to be called by the NSE-GUI to scale out
@@ -578,25 +608,27 @@ public class Api {
               "1",
               false,
               nse_configuration.getService().getKey());
-      for (VirtualNetworkFunctionRecord vnfr : vnfr_list) {
-        if (vnfr.getId().equals(vnfr_id)) {
-          boolean scaled = false;
-          for (VirtualDeploymentUnit vdu : vnfr.getVdu()) {
-            if (scaled) break;
-            if (vdu.getVnfc_instance().size() < vdu.getScale_in_out()
-                && (vdu.getVnfc().iterator().hasNext())) {
-              VNFComponent vnfComponent = vdu.getVnfc().iterator().next();
-              nfvoRequestor
-                  .getNetworkServiceRecordAgent()
-                  .createVNFCInstance(
-                      vnfr.getParent_ns_id(),
-                      vnfr.getId(),
-                      vnfComponent,
-                      new ArrayList<>(vdu.getVimInstanceName()));
-              scaled = true;
+      synchronized (vnfr_list) {
+        for (VirtualNetworkFunctionRecord vnfr : vnfr_list) {
+          if (vnfr.getId().equals(vnfr_id)) {
+            boolean scaled = false;
+            for (VirtualDeploymentUnit vdu : vnfr.getVdu()) {
+              if (scaled) break;
+              if (vdu.getVnfc_instance().size() < vdu.getScale_in_out()
+                  && (vdu.getVnfc().iterator().hasNext())) {
+                VNFComponent vnfComponent = vdu.getVnfc().iterator().next();
+                nfvoRequestor
+                    .getNetworkServiceRecordAgent()
+                    .createVNFCInstance(
+                        vnfr.getParent_ns_id(),
+                        vnfr.getId(),
+                        vnfComponent,
+                        new ArrayList<>(vdu.getVimInstanceName()));
+                scaled = true;
+              }
             }
+            return;
           }
-          return;
         }
       }
     } catch (SDKException e) {
@@ -626,49 +658,52 @@ public class Api {
               "1",
               false,
               nse_configuration.getService().getKey());
-      for (VirtualNetworkFunctionRecord vnfr : vnfr_list) {
-        if (vnfr.getId().equals(vnfr_id)) {
-          boolean scaled = false;
-          for (VirtualDeploymentUnit vdu : vnfr.getVdu()) {
-            if (scaled) break;
-            Set<VNFCInstance> vnfcInstancesToRemove = new HashSet<>();
-            for (VNFCInstance vnfcInstance : vdu.getVnfc_instance()) {
-              if (vnfcInstance.getState() == null
-                  || vnfcInstance.getState().toLowerCase().equals("active")) {
-                vnfcInstancesToRemove.add(vnfcInstance);
-              }
-            }
-            if (vnfcInstancesToRemove.size() > 1 && vnfcInstancesToRemove.iterator().hasNext()) {
-              // If no specific vnfci id to remove has been set use the default way and remove a random one..
-              VNFCInstance vnfcInstance_remove = null;
-              if (vnfci_hostname.equals("vnfci_hostname")) {
-                vnfcInstance_remove = vnfcInstancesToRemove.iterator().next();
-              } else {
-                for (VNFCInstance currVnfci : vnfcInstancesToRemove) {
-                  if (currVnfci.getHostname().equals(vnfci_hostname)) {
-                    vnfcInstance_remove = currVnfci;
-                  }
+      synchronized (vnfr_list) {
+        for (VirtualNetworkFunctionRecord vnfr : vnfr_list) {
+          if (vnfr.getId().equals(vnfr_id)) {
+            boolean scaled = false;
+            for (VirtualDeploymentUnit vdu : vnfr.getVdu()) {
+              if (scaled) break;
+              Set<VNFCInstance> vnfcInstancesToRemove = new HashSet<>();
+              for (VNFCInstance vnfcInstance : vdu.getVnfc_instance()) {
+                if (vnfcInstance.getState() == null
+                    || vnfcInstance.getState().toLowerCase().equals("active")) {
+                  vnfcInstancesToRemove.add(vnfcInstance);
                 }
               }
-              if (vnfcInstance_remove == null) {
-                logger.warn(
-                    "Not found VNFCInstance in VDU " + vdu.getId() + " that could be removed");
-                break;
+              if (vnfcInstancesToRemove.size() > 1 && vnfcInstancesToRemove.iterator().hasNext()) {
+                // If no specific vnfci id to remove has been set use the default way and remove a random one..
+                VNFCInstance vnfcInstance_remove = null;
+                if (vnfci_hostname.equals("vnfci_hostname")) {
+                  vnfcInstance_remove = vnfcInstancesToRemove.iterator().next();
+                } else {
+                  for (VNFCInstance currVnfci : vnfcInstancesToRemove) {
+                    if (currVnfci.getHostname().equals(vnfci_hostname)) {
+                      vnfcInstance_remove = currVnfci;
+                    }
+                  }
+                }
+                if (vnfcInstance_remove == null) {
+                  logger.warn(
+                      "Not found VNFCInstance in VDU " + vdu.getId() + " that could be removed");
+                  break;
+                }
+                nfvoRequestor
+                    .getNetworkServiceRecordAgent()
+                    .deleteVNFCInstance(
+                        vnfr.getParent_ns_id(),
+                        vnfr.getId(),
+                        vdu.getId(),
+                        vnfcInstance_remove.getId());
+                scaled = true;
+                notifyChange(vnfcInstance_remove.getVim_id());
               }
-              nfvoRequestor
-                  .getNetworkServiceRecordAgent()
-                  .deleteVNFCInstance(
-                      vnfr.getParent_ns_id(),
-                      vnfr.getId(),
-                      vdu.getId(),
-                      vnfcInstance_remove.getId());
-              scaled = true;
-              notifyChange(vnfcInstance_remove.getVim_id());
             }
+            return;
           }
-          return;
         }
       }
+
     } catch (SDKException e) {
       logger.error("Problem instantiating NFVORequestor");
     } catch (FileNotFoundException e) {
@@ -819,13 +854,15 @@ public class Api {
           }
           for (VirtualNetworkFunctionRecord vnfr : nsr.getVnfr()) {
             // Remove all occurences matching the old id
-            for (int x = 0; x < vnfr_list.size(); x++) {
-              VirtualNetworkFunctionRecord int_vnfr = vnfr_list.get(x);
-              if (int_vnfr.getId().equals(vnfr.getId())) {
-                vnfr_list.remove(int_vnfr);
+            synchronized (vnfr_list) {
+              for (int x = 0; x < vnfr_list.size(); x++) {
+                VirtualNetworkFunctionRecord int_vnfr = vnfr_list.get(x);
+                if (int_vnfr.getId().equals(vnfr.getId())) {
+                  vnfr_list.remove(int_vnfr);
+                }
               }
+              vnfr_list.add(vnfr);
             }
-            vnfr_list.add(vnfr);
             vnfr_name_map.put(vnfr.getId(), vnfr.getName());
             ArrayList<String> tmp_vnfs;
             if (nsr_vnfr_map.containsKey(nsr.getId())) {
