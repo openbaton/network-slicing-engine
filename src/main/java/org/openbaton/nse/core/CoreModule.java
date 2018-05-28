@@ -91,8 +91,8 @@ public class CoreModule {
    */
 
   public void addQos(Set<VirtualNetworkFunctionRecord> vnfrs, String nsrId) {
-    ArrayList<VirtualNetworkFunctionRecord> vnfr_list = api.getVnfr_list();
-    ArrayList<VimInstance> vim_list = api.getVim_list();
+    List<VirtualNetworkFunctionRecord> vnfr_list = api.getVnfr_list();
+    List<VimInstance> vim_list = api.getVim_list();
     // Lets put the received vnfrs into a dictionary and the nsr ids into a queue
     // to avoid running multiple times the same tasks
     logger.debug("There are currently " + nsr_id_queue.size() + " NSRs in the processing queue");

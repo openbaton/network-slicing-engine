@@ -11,6 +11,7 @@ import org.openbaton.catalogue.nfvo.VimInstance;
 import org.openbaton.catalogue.security.Project;
 import org.openbaton.nse.adapters.openstack.NeutronQoSExecutor;
 import org.openbaton.nse.adapters.openstack.NeutronQoSHandler;
+//import org.openbaton.nse.monitoring.Zabbix;
 import org.openbaton.nse.utils.openstack.OpenStackTools;
 import org.openbaton.nse.utils.openbaton.OpenBatonTools;
 import org.openbaton.nse.properties.NfvoProperties;
@@ -49,6 +50,12 @@ public class Api {
   private final List<VirtualNetworkFunctionRecord> vnfr_list =
       Collections.synchronizedList(new ArrayList<>());
 
+  /*
+  @SuppressWarnings("unused")
+  @Autowired
+  private Zabbix zabbix;
+  */
+
   @SuppressWarnings("unused")
   @Autowired
   private NeutronQoSHandler neutron_handler;
@@ -72,12 +79,12 @@ public class Api {
   @Autowired
   private NseProperties nse_configuration;
 
-  public ArrayList<VirtualNetworkFunctionRecord> getVnfr_list() {
-    return (ArrayList<VirtualNetworkFunctionRecord>) vnfr_list;
+  public List<VirtualNetworkFunctionRecord> getVnfr_list() {
+    return vnfr_list;
   }
 
-  public ArrayList<VimInstance> getVim_list() {
-    return (ArrayList<VimInstance>) vim_list;
+  public List<VimInstance> getVim_list() {
+    return vim_list;
   }
 
   // Function so signal the API that there is the need to pull latest data from a VIM instance
@@ -1136,6 +1143,14 @@ public class Api {
 
       this.osOverview.setVim_hashes(vim_hash_map);
 
+      /*
+      ArrayList<String> hosts = new ArrayList<>();
+      hosts.addAll(vnfci_name_map.values());
+      ArrayList<String> metrics = new ArrayList<>();
+      metrics.add("agent.ping");
+      zabbix.pollValues(hosts, metrics, "60");
+
+      */
       //this.int_vim_map = vim_map;
 
       // In the very end add the hosts and hypervisors which did not belong to any NSR
