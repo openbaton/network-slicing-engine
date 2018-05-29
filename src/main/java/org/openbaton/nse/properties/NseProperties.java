@@ -20,6 +20,7 @@ package org.openbaton.nse.properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Service;
 
@@ -37,6 +38,9 @@ public class NseProperties {
   private Service service;
   private String user;
   private String password;
+
+  @Value("${zabbix:false}")
+  private boolean zabbix;
 
   //  private String baseUrl;
   //  private String driver;
@@ -65,6 +69,14 @@ public class NseProperties {
 
   public void setPassword(String password) {
     this.password = password;
+  }
+
+  public boolean getZabbix() {
+    return zabbix;
+  }
+
+  public void setZabbix(boolean zabbix) {
+    this.zabbix = zabbix;
   }
 
   public static class Service {

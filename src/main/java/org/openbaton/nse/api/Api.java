@@ -1,5 +1,6 @@
 package org.openbaton.nse.api;
 
+import org.apache.tomcat.util.bcel.classfile.Constant;
 import org.openbaton.catalogue.mano.common.Ip;
 import org.openbaton.catalogue.mano.descriptor.InternalVirtualLink;
 import org.openbaton.catalogue.mano.descriptor.VNFComponent;
@@ -11,7 +12,7 @@ import org.openbaton.catalogue.nfvo.VimInstance;
 import org.openbaton.catalogue.security.Project;
 import org.openbaton.nse.adapters.openstack.NeutronQoSExecutor;
 import org.openbaton.nse.adapters.openstack.NeutronQoSHandler;
-//import org.openbaton.nse.monitoring.Zabbix;
+import org.openbaton.nse.monitoring.ZabbixPluginCaller;
 import org.openbaton.nse.utils.openstack.OpenStackTools;
 import org.openbaton.nse.utils.openbaton.OpenBatonTools;
 import org.openbaton.nse.properties.NfvoProperties;
@@ -35,6 +36,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.FileNotFoundException;
+import java.lang.reflect.Array;
 import java.util.*;
 
 /**
@@ -50,11 +52,16 @@ public class Api {
   private final List<VirtualNetworkFunctionRecord> vnfr_list =
       Collections.synchronizedList(new ArrayList<>());
 
-  /*
+  private final List<String> monitoring_list = Collections.synchronizedList(new ArrayList<>());
+  // Contains the VNFCI ids together with a list of metrics attached to them
+  private final List<HashMap<String, ArrayList<String>>> monitoring_metric_list =
+      Collections.synchronizedList(new ArrayList<>());
+  // Default metrics to be checked for
+  private static final String[] defaultNetMetrics = {"net.if.in[eth0]", "net.if.out[eth0]"};
+
   @SuppressWarnings("unused")
   @Autowired
-  private Zabbix zabbix;
-  */
+  private ZabbixPluginCaller zabbixCaller;
 
   @SuppressWarnings("unused")
   @Autowired
@@ -1143,14 +1150,36 @@ public class Api {
 
       this.osOverview.setVim_hashes(vim_hash_map);
 
-      /*
-      ArrayList<String> hosts = new ArrayList<>();
-      hosts.addAll(vnfci_name_map.values());
-      ArrayList<String> metrics = new ArrayList<>();
-      metrics.add("agent.ping");
-      zabbix.pollValues(hosts, metrics, "60");
+      // TODO : Find a proper location for the ZabbixPlugin calling
+      if (nse_configuration.getZabbix()) {
+        for (String host : vnfci_name_map.values()) {
+          if (!monitoring_list.contains(host)) {
+            logger.debug("Adding PMJob for " + host);
+            monitoring_list.add(host);
+            for (String m : defaultNetMetrics) {
+              if (zabbixCaller.metricExists(host, m)) {
+                String jobId = zabbixCaller.startPolling(host, m);
+                for (HashMap<String, ArrayList<String>> mm : monitoring_metric_list) {
+                  ArrayList<String> entry_metrics;
+                  if (mm.containsKey(host)) {
+                    entry_metrics = mm.get(host);
+                    entry_metrics.add(m);
+                  } else {
+                    HashMap<String, ArrayList<String>> entry = new HashMap<>();
+                    entry_metrics = new ArrayList<>();
+                    entry_metrics.add(m);
+                    entry.put(host, entry_metrics);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
 
-      */
+      //zabbix.startPolling(hosts, metrics);
+      //zabbix.pollValues(hosts, metrics);
+
       //this.int_vim_map = vim_map;
 
       // In the very end add the hosts and hypervisors which did not belong to any NSR

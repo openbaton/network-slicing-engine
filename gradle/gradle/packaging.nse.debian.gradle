@@ -63,7 +63,7 @@ task makeDeb(type: Deb, dependsOn: [jar, build, logDebianPackageJavaDependency])
         requires('openjdk-8-jre')
     }
 
-    requires('openbaton-plugin-monitoring-zabbix')
+    requires('openbaton-plugin-monitoring-monitoring')
 
     // Copy files from "from path" to "into path"
     from("src/main/resources/application.properties") {                                                                         // properties file
