@@ -57,6 +57,12 @@ public class ZabbixPluginCaller {
     return startPolling(hosts, metrics);
   }
 
+  public String startPolling(String host, List<String> metrics) {
+    ArrayList<String> hosts = new ArrayList<>();
+    hosts.add(host);
+    return startPolling(hosts, metrics);
+  }
+
   public String startPolling(List<String> hosts, List<String> metrics) {
     initMonitor();
     ObjectSelection selection = new ObjectSelection();
@@ -77,18 +83,17 @@ public class ZabbixPluginCaller {
     return pmJobId;
   }
 
-  public void pollValues(List<String> hosts, List<String> metrics) {
+  public List<Item> pollValues(List<String> hosts, List<String> metrics) {
     initMonitor();
+    List<Item> itemlist = new ArrayList<>();
     try {
-      List<Item> test = monitor.queryPMJob(hosts, metrics, "5");
-      for (Item i : test) {
-        logger.debug(i.toString());
-      }
+      itemlist = monitor.queryPMJob(hosts, metrics, "5");
     } catch (MonitoringException e) {
       logger.warn("Problem with monitoring");
       logger.warn(e.getMessage());
       e.printStackTrace();
     }
+    return itemlist;
   }
 
   // Checks if a metric ( item in zabbix ) is available for a specific host
@@ -121,12 +126,12 @@ public class ZabbixPluginCaller {
       // TODO : This happens when we scale out for example.. Maybe we should wait for the VM to come up / the NSR to be ACTIVE
       logger.warn("Problem polling for item id " + metric + " on " + host);
       return false;
-    } finally {
-      try {
-        monitor.deletePMJob(ids);
-      } catch (MonitoringException e) {
-      }
-    }
+    } //finally {
+    //try {
+    //monitor.deletePMJob(ids);
+    //} catch (MonitoringException e) {
+    //}
+    //}
     return true;
   }
 }

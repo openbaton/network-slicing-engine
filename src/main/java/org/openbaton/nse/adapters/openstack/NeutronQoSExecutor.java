@@ -25,7 +25,7 @@ import org.openbaton.catalogue.mano.descriptor.InternalVirtualLink;
 import org.openbaton.catalogue.mano.descriptor.VirtualDeploymentUnit;
 import org.openbaton.catalogue.mano.record.VNFCInstance;
 import org.openbaton.catalogue.mano.record.VirtualNetworkFunctionRecord;
-import org.openbaton.catalogue.nfvo.VimInstance;
+import org.openbaton.catalogue.nfvo.viminstances.BaseVimInstance;
 import org.openbaton.nse.utils.*;
 import org.openbaton.nse.utils.DetailedQoSReference;
 import org.openbaton.nse.utils.QoSReference;
@@ -58,7 +58,7 @@ public class NeutronQoSExecutor implements Runnable, Callable {
 
   private Set<VirtualNetworkFunctionRecord> vnfrs;
   private NeutronQoSHandler neutron_handler;
-  private VimInstance v;
+  private BaseVimInstance v;
   private String token;
   private Map<String, String> creds;
   private List<? extends Port> portList;
@@ -69,7 +69,7 @@ public class NeutronQoSExecutor implements Runnable, Callable {
       Set<VirtualNetworkFunctionRecord> vnfrs,
       NeutronQoSHandler handler,
       String token,
-      VimInstance v,
+      BaseVimInstance v,
       Map<String, String> creds,
       List<? extends Port> portList,
       Map<String, String> computeNodeMap,
@@ -86,7 +86,7 @@ public class NeutronQoSExecutor implements Runnable, Callable {
   }
 
   public NeutronQoSExecutor(
-      NeutronQoSHandler handler, String token, VimInstance v, Map<String, String> creds) {
+      NeutronQoSHandler handler, String token, BaseVimInstance v, Map<String, String> creds) {
     this.neutron_handler = handler;
     this.token = token;
     this.v = v;

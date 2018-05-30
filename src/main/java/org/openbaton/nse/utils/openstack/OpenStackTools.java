@@ -1,6 +1,6 @@
 package org.openbaton.nse.utils.openstack;
 
-import org.openbaton.catalogue.nfvo.VimInstance;
+import org.openbaton.catalogue.nfvo.viminstances.OpenstackVimInstance;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.api.exceptions.AuthenticationException;
 import org.openstack4j.model.common.Identifier;
@@ -78,14 +78,14 @@ public class OpenStackTools {
     return os;
   }
 
-  public OSClient getOSClient(VimInstance v) {
+  public OSClient getOSClient(OpenstackVimInstance v) {
     return this.getOSClient(
         v.getTenant(), v.getUsername(), v.getPassword(), v.getLocation().getName(), v.getAuthUrl());
   }
 
   // Check for nova api v2 or nova api v3, necessary to be able to know which OSClient to use if you choose
   // to use openstack4j
-  private boolean isV3API(VimInstance vimInstance) {
+  private boolean isV3API(OpenstackVimInstance vimInstance) {
     return vimInstance.getAuthUrl().endsWith("/v3") || vimInstance.getAuthUrl().endsWith("/v3.0");
   }
 
@@ -96,7 +96,7 @@ public class OpenStackTools {
   }
 
   // Method to get a x auth token using the openstack4j libraries
-  public String getAuthToken(OSClient os, VimInstance vimInstance) {
+  public String getAuthToken(OSClient os, OpenstackVimInstance vimInstance) {
     //logger.debug(vimInstance.getAuthUrl());
     String token;
     if (isV3API(vimInstance)) {
@@ -117,7 +117,7 @@ public class OpenStackTools {
   }
 
   // Method to get the correct neutron url to communicate with
-  public String getNeutronEndpoint(VimInstance vimInstance) {
+  public String getNeutronEndpoint(OpenstackVimInstance vimInstance) {
     //OSClient os = getOSClient(vimInstance);
     OSClient os = getOSClient(vimInstance);
 

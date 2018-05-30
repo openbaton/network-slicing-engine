@@ -21,10 +21,13 @@ package org.openbaton.nse.core;
 import org.openbaton.catalogue.mano.descriptor.VirtualDeploymentUnit;
 import org.openbaton.catalogue.mano.record.VNFCInstance;
 import org.openbaton.catalogue.mano.record.VirtualNetworkFunctionRecord;
-import org.openbaton.catalogue.nfvo.VimInstance;
+import org.openbaton.catalogue.nfvo.viminstances.BaseVimInstance;
+//import org.openbaton.catalogue.nfvo.VimInstance;
+import org.openbaton.catalogue.nfvo.viminstances.OpenstackVimInstance;
 import org.openbaton.nse.adapters.openstack.NeutronQoSExecutor;
 import org.openbaton.nse.adapters.openstack.NeutronQoSHandler;
 import org.openbaton.nse.api.Api;
+import org.openbaton.nse.monitoring.ZabbixChecker;
 import org.openbaton.nse.utils.openstack.OpenStackTools;
 import org.openbaton.nse.utils.openbaton.OpenBatonTools;
 import org.openbaton.nse.properties.NseProperties;
@@ -92,7 +95,7 @@ public class CoreModule {
 
   public void addQos(Set<VirtualNetworkFunctionRecord> vnfrs, String nsrId) {
     List<VirtualNetworkFunctionRecord> vnfr_list = api.getVnfr_list();
-    List<VimInstance> vim_list = api.getVim_list();
+    List<BaseVimInstance> vim_list = api.getVim_list();
     // Lets put the received vnfrs into a dictionary and the nsr ids into a queue
     // to avoid running multiple times the same tasks
     logger.debug("There are currently " + nsr_id_queue.size() + " NSRs in the processing queue");
@@ -175,12 +178,12 @@ public class CoreModule {
             + vim_vnfrs_map.keySet().size()
             + " VIM(s)");
     for (String key : vim_vnfrs_map.keySet()) {
-      VimInstance v = obTools.getVimInstance(requestor, key);
+      BaseVimInstance v = obTools.getVimInstance(requestor, key);
       logger.debug(" Working on : " + v.getAuthUrl());
 
       // Remove all occurences matching the old id
       for (int x = 0; x < vim_list.size(); x++) {
-        VimInstance vim = vim_list.get(x);
+        BaseVimInstance vim = vim_list.get(x);
         if (vim.getId().equals(v.getId())) {
           vim_list.remove(vim);
         }
@@ -204,21 +207,24 @@ public class CoreModule {
   }
 
   private void openstackNeutronQoS(
-      String key, VimInstance v, Map<String, Set<VirtualNetworkFunctionRecord>> vim_vnfrs_map) {
+      String key, BaseVimInstance v, Map<String, Set<VirtualNetworkFunctionRecord>> vim_vnfrs_map) {
     Map<String, String> creds = obTools.getDatacenterCredentials(requestor, key);
-    OSClient os = osTools.getOSClient(v);
-    String token = osTools.getAuthToken(os, v);
-    String neutron_access = osTools.getNeutronEndpoint(v);
-    // Add the neutron related information into our credential map
-    creds.put("neutron", neutron_access);
-    //logger.debug("    Collecting OpenStack Neutron Ports");
-    List<? extends Port> portList = osTools.getNeutronPorts(os);
-    logger.debug(
-        "    Starting thread to handle VNFRs using VIM : "
-            + v.getName()
-            + " with id : "
-            + v.getId());
-    startOpenStackNeutronQoSTask(key, vim_vnfrs_map, os, token, v, creds, portList);
+    if (OpenstackVimInstance.class.isInstance(v)) {
+      OpenstackVimInstance osV = (OpenstackVimInstance) v;
+      OSClient os = osTools.getOSClient(osV);
+      String token = osTools.getAuthToken(os, osV);
+      String neutron_access = osTools.getNeutronEndpoint(osV);
+      // Add the neutron related information into our credential map
+      creds.put("neutron", neutron_access);
+      //logger.debug("    Collecting OpenStack Neutron Ports");
+      List<? extends Port> portList = osTools.getNeutronPorts(os);
+      logger.debug(
+          "    Starting thread to handle VNFRs using VIM : "
+              + v.getName()
+              + " with id : "
+              + v.getId());
+      startOpenStackNeutronQoSTask(key, vim_vnfrs_map, os, token, v, creds, portList);
+    }
   }
 
   private Map<String, String> getVnfHostNameComputeNodeMap(
@@ -254,7 +260,7 @@ public class CoreModule {
       Map<String, Set<VirtualNetworkFunctionRecord>> vim_vnfrs_map,
       OSClient os,
       String token,
-      VimInstance v,
+      BaseVimInstance v,
       Map<String, String> creds,
       List<? extends Port> portList) {
     Callable<NeutronQoSExecutor> aqe =

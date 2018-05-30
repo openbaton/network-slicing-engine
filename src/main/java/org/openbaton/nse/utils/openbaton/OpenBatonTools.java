@@ -18,7 +18,8 @@
 
 package org.openbaton.nse.utils.openbaton;
 
-import org.openbaton.catalogue.nfvo.VimInstance;
+import org.openbaton.catalogue.nfvo.viminstances.BaseVimInstance;
+import org.openbaton.catalogue.nfvo.viminstances.OpenstackVimInstance;
 import org.openbaton.catalogue.security.Project;
 import org.openbaton.exceptions.NotFoundException;
 import org.openbaton.nse.properties.NfvoProperties;
@@ -93,7 +94,7 @@ public class OpenBatonTools {
   public Map<String, String> getDatacenterCredentials(NFVORequestor requestor, String vim_id) {
     Map<String, String> cred = new HashMap<>();
     // What we want to archieve is to list all machines and know to which vim-instance they belong
-    VimInstance v = null;
+    BaseVimInstance v = null;
     try {
       //logger.debug("trying to use viminstanceagent");
       //VimInstanceAgent agent = requestor.getVimInstanceAgent();
@@ -101,7 +102,7 @@ public class OpenBatonTools {
       //logger.debug(requestor.getVimInstanceAgent().findAll().toString());
 
       //v = requestor.getVimInstanceAgent().findById(vim_id);
-      for (VimInstance vim : requestor.getVimInstanceAgent().findAll()) {
+      for (BaseVimInstance vim : requestor.getVimInstanceAgent().findAll()) {
         if (vim.getId().equals(vim_id)) {
           // well we found the correct vim
           v = vim;
@@ -111,12 +112,16 @@ public class OpenBatonTools {
         logger.warn("Problem generating the credentials");
         return cred;
       }
-      //logger.debug("        adding identity : " + v.getTenant() + ":" + v.getUsername());
-      cred.put("identity", v.getTenant() + ":" + v.getUsername());
-      //logger.debug("        adding password : " + v.getPassword());
-      cred.put("password", v.getPassword());
-      //logger.debug("        adding nova auth url " + v.getAuthUrl());
-      cred.put("auth", v.getAuthUrl());
+      if (OpenstackVimInstance.class.isInstance(v)) {
+        OpenstackVimInstance osV = (OpenstackVimInstance) v;
+        //logger.debug("        adding identity : " + v.getTenant() + ":" + v.getUsername());
+        cred.put("identity", osV.getTenant() + ":" + osV.getUsername());
+        //logger.debug("        adding password : " + v.getPassword());
+        cred.put("password", osV.getPassword());
+        //logger.debug("        adding nova auth url " + v.getAuthUrl());
+        cred.put("auth", v.getAuthUrl());
+      }
+
     } catch (Exception e) {
       logger.error("Exception while creating credentials");
       logger.error(e.getMessage());
@@ -127,13 +132,14 @@ public class OpenBatonTools {
   }
 
   // Function to directly get a VimInstance by its id
-  public VimInstance getVimInstance(NFVORequestor requestor, String vim_id) {
-    VimInstance v = null;
+  public BaseVimInstance getVimInstance(NFVORequestor requestor, String vim_id) {
+    BaseVimInstance v = null;
     try {
       //logger.debug("listing all vim-instances");
       //logger.debug(requestor.getVimInstanceAgent().findAll().toString());
       //v = requestor.getVimInstanceAgent().findById(vim_id);
-      for (VimInstance vim : requestor.getVimInstanceAgent().findAll()) {
+      for (BaseVimInstance vim : requestor.getVimInstanceAgent().findAll()) {
+
         if (vim.getId().equals(vim_id)) {
           // well we found the correct vim
           v = vim;

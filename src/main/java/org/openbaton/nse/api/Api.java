@@ -8,10 +8,13 @@ import org.openbaton.catalogue.mano.descriptor.VirtualDeploymentUnit;
 import org.openbaton.catalogue.mano.record.NetworkServiceRecord;
 import org.openbaton.catalogue.mano.record.VNFCInstance;
 import org.openbaton.catalogue.mano.record.VirtualNetworkFunctionRecord;
-import org.openbaton.catalogue.nfvo.VimInstance;
+import org.openbaton.catalogue.nfvo.viminstances.BaseVimInstance;
+import org.openbaton.catalogue.nfvo.viminstances.OpenstackVimInstance;
+import org.openbaton.catalogue.nfvo.networks.BaseNetwork;
 import org.openbaton.catalogue.security.Project;
 import org.openbaton.nse.adapters.openstack.NeutronQoSExecutor;
 import org.openbaton.nse.adapters.openstack.NeutronQoSHandler;
+import org.openbaton.nse.monitoring.ZabbixChecker;
 import org.openbaton.nse.monitoring.ZabbixPluginCaller;
 import org.openbaton.nse.utils.openstack.OpenStackTools;
 import org.openbaton.nse.utils.openbaton.OpenBatonTools;
@@ -47,21 +50,14 @@ public class Api {
   private static Logger logger = LoggerFactory.getLogger(Api.class);
   private NetworkOverview osOverview = new NetworkOverview();
   //private ArrayList<VimInstance> vim_list = new ArrayList<>();
-  private final List<VimInstance> vim_list = Collections.synchronizedList(new ArrayList<>());
+  private final List<BaseVimInstance> vim_list = Collections.synchronizedList(new ArrayList<>());
   //private ArrayList<VirtualNetworkFunctionRecord> vnfr_list = new ArrayList<>();
   private final List<VirtualNetworkFunctionRecord> vnfr_list =
       Collections.synchronizedList(new ArrayList<>());
 
-  private final List<String> monitoring_list = Collections.synchronizedList(new ArrayList<>());
-  // Contains the VNFCI ids together with a list of metrics attached to them
-  private final List<HashMap<String, ArrayList<String>>> monitoring_metric_list =
-      Collections.synchronizedList(new ArrayList<>());
-  // Default metrics to be checked for
-  private static final String[] defaultNetMetrics = {"net.if.in[eth0]", "net.if.out[eth0]"};
-
   @SuppressWarnings("unused")
   @Autowired
-  private ZabbixPluginCaller zabbixCaller;
+  private ZabbixChecker zabbixChecker;
 
   @SuppressWarnings("unused")
   @Autowired
@@ -90,7 +86,7 @@ public class Api {
     return vnfr_list;
   }
 
-  public List<VimInstance> getVim_list() {
+  public List<BaseVimInstance> getVim_list() {
     return vim_list;
   }
 
@@ -135,9 +131,10 @@ public class Api {
             + " policy : "
             + policy);
     synchronized (vim_list) {
-      for (VimInstance v : vim_list) {
+      for (BaseVimInstance v : vim_list) {
         if (v.getId().equals(vim)) {
-          if (v.getType().equals("openstack")) {
+          if (OpenstackVimInstance.class.isInstance(v)) {
+            OpenstackVimInstance osV = (OpenstackVimInstance) v;
             NFVORequestor nfvoRequestor;
             try {
               nfvoRequestor =
@@ -149,9 +146,9 @@ public class Api {
                       "1",
                       false,
                       nse_configuration.getService().getKey());
-              OSClient tmp_os = osTools.getOSClient(v);
-              String token = osTools.getAuthToken(tmp_os, v);
-              String neutron_access = osTools.getNeutronEndpoint(v);
+              OSClient tmp_os = osTools.getOSClient(osV);
+              String token = osTools.getAuthToken(tmp_os, osV);
+              String neutron_access = osTools.getNeutronEndpoint(osV);
               Map<String, String> creds =
                   obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
               creds.put("neutron", neutron_access);
@@ -189,9 +186,10 @@ public class Api {
             + " policy : "
             + policy);
     synchronized (vim_list) {
-      for (VimInstance v : vim_list) {
+      for (BaseVimInstance v : vim_list) {
         if (v.getId().equals(vim)) {
-          if (v.getType().equals("openstack")) {
+          if (OpenstackVimInstance.class.isInstance(v)) {
+            OpenstackVimInstance osV = (OpenstackVimInstance) v;
             NFVORequestor nfvoRequestor;
             try {
               nfvoRequestor =
@@ -203,9 +201,9 @@ public class Api {
                       "1",
                       false,
                       nse_configuration.getService().getKey());
-              OSClient tmp_os = osTools.getOSClient(v);
-              String token = osTools.getAuthToken(tmp_os, v);
-              String neutron_access = osTools.getNeutronEndpoint(v);
+              OSClient tmp_os = osTools.getOSClient(osV);
+              String token = osTools.getAuthToken(tmp_os, osV);
+              String neutron_access = osTools.getNeutronEndpoint(osV);
               Map<String, String> creds =
                   obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
               creds.put("neutron", neutron_access);
@@ -240,9 +238,10 @@ public class Api {
             + " policy : "
             + id);
     synchronized (vim_list) {
-      for (VimInstance v : vim_list) {
+      for (BaseVimInstance v : vim_list) {
         if (v.getId().equals(vim)) {
-          if (v.getType().equals("openstack")) {
+          if (OpenstackVimInstance.class.isInstance(v)) {
+            OpenstackVimInstance osV = (OpenstackVimInstance) v;
             NFVORequestor nfvoRequestor;
             try {
               nfvoRequestor =
@@ -254,9 +253,9 @@ public class Api {
                       "1",
                       false,
                       nse_configuration.getService().getKey());
-              OSClient tmp_os = osTools.getOSClient(v);
-              String token = osTools.getAuthToken(tmp_os, v);
-              String neutron_access = osTools.getNeutronEndpoint(v);
+              OSClient tmp_os = osTools.getOSClient(osV);
+              String token = osTools.getAuthToken(tmp_os, osV);
+              String neutron_access = osTools.getNeutronEndpoint(osV);
               Map<String, String> creds =
                   obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
               creds.put("neutron", neutron_access);
@@ -294,9 +293,10 @@ public class Api {
             + " rule : "
             + rule_id);
     synchronized (vim_list) {
-      for (VimInstance v : vim_list) {
+      for (BaseVimInstance v : vim_list) {
         if (v.getId().equals(vim)) {
-          if (v.getType().equals("openstack")) {
+          if (OpenstackVimInstance.class.isInstance(v)) {
+            OpenstackVimInstance osV = (OpenstackVimInstance) v;
             NFVORequestor nfvoRequestor;
             try {
               nfvoRequestor =
@@ -308,9 +308,9 @@ public class Api {
                       "1",
                       false,
                       nse_configuration.getService().getKey());
-              OSClient tmp_os = osTools.getOSClient(v);
-              String token = osTools.getAuthToken(tmp_os, v);
-              String neutron_access = osTools.getNeutronEndpoint(v);
+              OSClient tmp_os = osTools.getOSClient(osV);
+              String token = osTools.getAuthToken(tmp_os, osV);
+              String neutron_access = osTools.getNeutronEndpoint(osV);
               Map<String, String> creds =
                   obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
               creds.put("neutron", neutron_access);
@@ -363,9 +363,10 @@ public class Api {
     rule.setType(type);
     rule.setMax_kbps(new Integer(kbps));
     synchronized (vim_list) {
-      for (VimInstance v : vim_list) {
+      for (BaseVimInstance v : vim_list) {
         if (v.getId().equals(vim)) {
-          if (v.getType().equals("openstack")) {
+          if (OpenstackVimInstance.class.isInstance(v)) {
+            OpenstackVimInstance osV = (OpenstackVimInstance) v;
             NFVORequestor nfvoRequestor;
             try {
               nfvoRequestor =
@@ -377,9 +378,9 @@ public class Api {
                       "1",
                       false,
                       nse_configuration.getService().getKey());
-              OSClient tmp_os = osTools.getOSClient(v);
-              String token = osTools.getAuthToken(tmp_os, v);
-              String neutron_access = osTools.getNeutronEndpoint(v);
+              OSClient tmp_os = osTools.getOSClient(osV);
+              String token = osTools.getAuthToken(tmp_os, osV);
+              String neutron_access = osTools.getNeutronEndpoint(osV);
               Map<String, String> creds =
                   obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
               creds.put("neutron", neutron_access);
@@ -430,9 +431,10 @@ public class Api {
     rules.add(new OpenStackBandwidthRule(burst, kbps, type));
     policy.setRules(rules);
     synchronized (vim_list) {
-      for (VimInstance v : vim_list) {
+      for (BaseVimInstance v : vim_list) {
         if (v.getId().equals(vim)) {
-          if (v.getType().equals("openstack")) {
+          if (OpenstackVimInstance.class.isInstance(v)) {
+            OpenstackVimInstance osV = (OpenstackVimInstance) v;
             NFVORequestor nfvoRequestor;
             try {
               nfvoRequestor =
@@ -444,9 +446,9 @@ public class Api {
                       "1",
                       false,
                       nse_configuration.getService().getKey());
-              OSClient tmp_os = osTools.getOSClient(v);
-              String token = osTools.getAuthToken(tmp_os, v);
-              String neutron_access = osTools.getNeutronEndpoint(v);
+              OSClient tmp_os = osTools.getOSClient(osV);
+              String token = osTools.getAuthToken(tmp_os, osV);
+              String neutron_access = osTools.getNeutronEndpoint(osV);
               Map<String, String> creds =
                   obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
               creds.put("neutron", neutron_access);
@@ -475,9 +477,10 @@ public class Api {
     logger.debug("Received port list request for vim : " + vim + " in project " + project);
     ArrayList<OpenStackPort> port_list = new ArrayList<>();
     synchronized (vim_list) {
-      for (VimInstance v : vim_list) {
+      for (BaseVimInstance v : vim_list) {
         if (v.getId().equals(vim)) {
-          if (v.getType().equals("openstack")) {
+          if (OpenstackVimInstance.class.isInstance(v)) {
+            OpenstackVimInstance osV = (OpenstackVimInstance) v;
             NFVORequestor nfvoRequestor;
             try {
               nfvoRequestor =
@@ -490,9 +493,9 @@ public class Api {
                       false,
                       nse_configuration.getService().getKey());
 
-              OSClient tmp_os = osTools.getOSClient(v);
-              String token = osTools.getAuthToken(tmp_os, v);
-              String neutron_access = osTools.getNeutronEndpoint(v);
+              OSClient tmp_os = osTools.getOSClient(osV);
+              String token = osTools.getAuthToken(tmp_os, osV);
+              String neutron_access = osTools.getNeutronEndpoint(osV);
               Map<String, String> creds =
                   obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
               creds.put("neutron", neutron_access);
@@ -521,9 +524,10 @@ public class Api {
     logger.debug("Received network list request for vim : " + vim + " in project " + project);
     ArrayList<OpenStackNetwork> net_list = new ArrayList<>();
     synchronized (vim_list) {
-      for (VimInstance v : vim_list) {
+      for (BaseVimInstance v : vim_list) {
         if (v.getId().equals(vim)) {
-          if (v.getType().equals("openstack")) {
+          if (OpenstackVimInstance.class.isInstance(v)) {
+            OpenstackVimInstance osV = (OpenstackVimInstance) v;
             NFVORequestor nfvoRequestor;
             try {
               nfvoRequestor =
@@ -536,9 +540,9 @@ public class Api {
                       false,
                       nse_configuration.getService().getKey());
 
-              OSClient tmp_os = osTools.getOSClient(v);
-              String token = osTools.getAuthToken(tmp_os, v);
-              String neutron_access = osTools.getNeutronEndpoint(v);
+              OSClient tmp_os = osTools.getOSClient(osV);
+              String token = osTools.getAuthToken(tmp_os, osV);
+              String neutron_access = osTools.getNeutronEndpoint(osV);
               Map<String, String> creds =
                   obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
               creds.put("neutron", neutron_access);
@@ -567,9 +571,10 @@ public class Api {
     logger.debug("Received list QoS policy list for vim : " + vim + " in project " + project);
     ArrayList<OpenStackQoSPolicy> qos_policy_list = new ArrayList<>();
     synchronized (vim_list) {
-      for (VimInstance v : vim_list) {
+      for (BaseVimInstance v : vim_list) {
         if (v.getId().equals(vim)) {
-          if (v.getType().equals("openstack")) {
+          if (OpenstackVimInstance.class.isInstance(v)) {
+            OpenstackVimInstance osV = (OpenstackVimInstance) v;
             NFVORequestor nfvoRequestor;
             try {
               nfvoRequestor =
@@ -582,9 +587,9 @@ public class Api {
                       false,
                       nse_configuration.getService().getKey());
 
-              OSClient tmp_os = osTools.getOSClient(v);
-              String token = osTools.getAuthToken(tmp_os, v);
-              String neutron_access = osTools.getNeutronEndpoint(v);
+              OSClient tmp_os = osTools.getOSClient(osV);
+              String token = osTools.getAuthToken(tmp_os, osV);
+              String neutron_access = osTools.getNeutronEndpoint(osV);
               Map<String, String> creds =
                   obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
               creds.put("neutron", neutron_access);
@@ -647,9 +652,9 @@ public class Api {
       }
     } catch (SDKException e) {
       logger.error("Problem instantiating NFVORequestor");
-    } catch (FileNotFoundException e) {
-      logger.error("Problem scaling");
-    }
+    } //catch (FileNotFoundException e) {
+    //logger.error("Problem scaling");
+    //}
   }
 
   // Method to be called by the NSE-GUI to scale in
@@ -720,9 +725,9 @@ public class Api {
 
     } catch (SDKException e) {
       logger.error("Problem instantiating NFVORequestor");
-    } catch (FileNotFoundException e) {
-      logger.error("Problem scaling");
-    }
+    } //catch (FileNotFoundException e) {
+    //logger.error("Problem scaling");
+    // }
   }
 
   private void updateNetworkOverview() {
@@ -810,7 +815,7 @@ public class Api {
     // A list of ips which have to be checked for ports + subnets + nets ( listed by internal hash..)
     HashMap<Integer, ArrayList<String>> ips_to_be_checked = new HashMap<>();
     // A simple map which saves the reference to the osclients ( via a vim instaces )
-    HashMap<Integer, VimInstance> os_vim_map = new HashMap<>();
+    HashMap<Integer, BaseVimInstance> os_vim_map = new HashMap<>();
     // Set up a map containing the OpenStack port ids listed with their parent network id
     HashMap<String, String> port_net_map = this.osOverview.getOs_port_net_map();
     if (port_net_map == null) {
@@ -930,98 +935,103 @@ public class Api {
                   tmp_vnfcis.add(vnfci.getId());
                   vdu_vnfci_map.put(vdu.getId(), tmp_vnfcis);
                 }
-                VimInstance tmp_vim = obTools.getVimInstance(nfvo_nsr_req, vnfci.getVim_id());
-                for (int x = 0; x < vim_list.size(); x++) {
-                  VimInstance vim = vim_list.get(x);
-                  if (vim.getId().equals(tmp_vim.getId())) {
-                    vim_list.remove(vim);
+                BaseVimInstance tmp_vim = obTools.getVimInstance(nfvo_nsr_req, vnfci.getVim_id());
+                if (OpenstackVimInstance.class.isInstance(tmp_vim)) {
+                  OpenstackVimInstance tmp_os_vim = (OpenstackVimInstance) tmp_vim;
+
+                  for (int x = 0; x < vim_list.size(); x++) {
+                    BaseVimInstance vim = vim_list.get(x);
+                    if (vim.getId().equals(tmp_vim.getId())) {
+                      vim_list.remove(vim);
+                    }
                   }
-                }
-                vim_list.add(tmp_vim);
-                ArrayList<String> tmp_list;
-                if (vim_project_map.containsKey(tmp_vim.getId())) {
-                  tmp_list = vim_project_map.get(tmp_vim.getId());
-                  if (!tmp_list.contains(project.getId())) {
+                  vim_list.add(tmp_vim);
+                  ArrayList<String> tmp_list;
+                  if (vim_project_map.containsKey(tmp_vim.getId())) {
+                    tmp_list = vim_project_map.get(tmp_vim.getId());
+                    if (!tmp_list.contains(project.getId())) {
+                      tmp_list.add(project.getId());
+                    }
+                  } else {
+                    tmp_list = new ArrayList<>();
                     tmp_list.add(project.getId());
+                    vim_project_map.put(tmp_vim.getId(), tmp_list);
                   }
-                } else {
-                  tmp_list = new ArrayList<>();
-                  tmp_list.add(project.getId());
-                  vim_project_map.put(tmp_vim.getId(), tmp_list);
-                }
-                // Generate an identifier internally to not distinguish vims by their internal id but at other crucial information to avoid contacting the same infrastructure
-                int vim_identifier =
-                    (tmp_vim.getAuthUrl() + tmp_vim.getUsername() + tmp_vim.getTenant()).hashCode()
-                        & 0xfffffff;
-                if (!vim_name_map.containsKey(tmp_vim.getId())) {
-                  vim_name_map.put(tmp_vim.getId(), tmp_vim.getName());
-                  vim_type_map.put(tmp_vim.getId(), tmp_vim.getType());
-                  for (org.openbaton.catalogue.nfvo.Network n : tmp_vim.getNetworks()) {
-                    net_name_map.put(n.getExtId(), n.getName());
-                  }
-                }
-                ArrayList<String> vlrs = vnfr_vlr_map.get(vnfr.getId());
-                for (org.openbaton.catalogue.nfvo.Network n : tmp_vim.getNetworks()) {
-                  for (String vlr_id : vlrs) {
-                    if (vlr_name_map.get(vlr_id).equals(n.getName())) {
-                      vlr_ext_net_map.put(vlr_id, n.getExtId());
+                  // Generate an identifier internally to not distinguish vims by their internal id but at other crucial information to avoid contacting the same infrastructure
+                  int vim_identifier =
+                      (tmp_vim.getAuthUrl() + tmp_os_vim.getUsername() + tmp_os_vim.getTenant())
+                              .hashCode()
+                          & 0xfffffff;
+                  if (!vim_name_map.containsKey(tmp_vim.getId())) {
+                    vim_name_map.put(tmp_vim.getId(), tmp_vim.getName());
+                    vim_type_map.put(tmp_vim.getId(), tmp_vim.getType());
+                    for (BaseNetwork n : tmp_os_vim.getNetworks()) {
+                      net_name_map.put(n.getExtId(), n.getName());
                     }
                   }
-                }
-                vnfci_vim_map.put(vnfci.getId(), vim_identifier);
-                for (Ip ip : vnfci.getIps()) {
-                  ip_name_map.put(ip.getId(), ip.getNetName());
-                  ip_addresses_map.put(ip.getId(), ip.getIp());
-                  ArrayList<String> tmp_ips;
-                  if (vnfci_ip_map.containsKey(vnfci.getId())) {
-                    tmp_ips = vnfci_ip_map.get(vnfci.getId());
-                    tmp_ips.add(ip.getId());
-                  } else {
-                    tmp_ips = new ArrayList<>();
-                    tmp_ips.add(ip.getId());
-                    vnfci_ip_map.put(vnfci.getId(), tmp_ips);
-                  }
-                  ArrayList<String> tmp_ip_list;
-                  if (ips_to_be_checked.containsKey(vim_identifier)) {
-                    tmp_ip_list = ips_to_be_checked.get(vim_identifier);
-                    tmp_ip_list.add(ip.getIp());
-                  } else {
-                    tmp_ip_list = new ArrayList<>();
-                    tmp_ip_list.add(ip.getIp());
-                    ips_to_be_checked.put(vim_identifier, tmp_ip_list);
-                  }
-                }
-                if (!processed_vims.contains(vim_identifier)) {
-                  processed_vims.add(vim_identifier);
-                  ArrayList<String> tmp_vim_ids = new ArrayList<>();
-                  tmp_vim_ids.add(tmp_vim.getId());
-                  vim_map.put(vim_identifier, tmp_vim_ids);
-                  int_vim_map.put(vim_identifier, tmp_vim_ids);
-
-                  if (tmp_vim.getType().equals("openstack")) {
-                    OSClient tmp_os = osTools.getOSClient(tmp_vim);
-                    //if (!os_client_map.containsKey(vim_identifier)) {
-                    //  os_client_map.put(vim_identifier, tmp_os);
-                    //}
-                    if (!os_vim_map.containsKey(vim_identifier)) {
-                      os_vim_map.put(vim_identifier, tmp_vim);
-                    }
-                    Map<String, String> tmp_computeNodeMap = osTools.getComputeNodeMap(tmp_os);
-                    if (tmp_computeNodeMap != null) {
-                      // We collect all involved compute nodes
-                      ArrayList<String> tmp_node_names = new ArrayList<>();
-                      for (String key : tmp_computeNodeMap.keySet()) {
-
-                        tmp_node_names.add(key);
+                  ArrayList<String> vlrs = vnfr_vlr_map.get(vnfr.getId());
+                  for (BaseNetwork n : tmp_vim.getNetworks()) {
+                    for (String vlr_id : vlrs) {
+                      if (vlr_name_map.get(vlr_id).equals(n.getName())) {
+                        vlr_ext_net_map.put(vlr_id, n.getExtId());
                       }
-                      node_map.put(vim_identifier, tmp_node_names);
                     }
                   }
-                } else {
-                  // in this case we already found the vim via the internal generated hash and only need to append the vim id to the hash in the map
-                  ArrayList<String> vim_ids = vim_map.get(vim_identifier);
-                  if (!vim_ids.contains(tmp_vim.getId())) {
-                    vim_ids.add(tmp_vim.getId());
+                  vnfci_vim_map.put(vnfci.getId(), vim_identifier);
+                  for (Ip ip : vnfci.getIps()) {
+                    ip_name_map.put(ip.getId(), ip.getNetName());
+                    ip_addresses_map.put(ip.getId(), ip.getIp());
+                    ArrayList<String> tmp_ips;
+                    if (vnfci_ip_map.containsKey(vnfci.getId())) {
+                      tmp_ips = vnfci_ip_map.get(vnfci.getId());
+                      tmp_ips.add(ip.getId());
+                    } else {
+                      tmp_ips = new ArrayList<>();
+                      tmp_ips.add(ip.getId());
+                      vnfci_ip_map.put(vnfci.getId(), tmp_ips);
+                    }
+                    ArrayList<String> tmp_ip_list;
+                    if (ips_to_be_checked.containsKey(vim_identifier)) {
+                      tmp_ip_list = ips_to_be_checked.get(vim_identifier);
+                      tmp_ip_list.add(ip.getIp());
+                    } else {
+                      tmp_ip_list = new ArrayList<>();
+                      tmp_ip_list.add(ip.getIp());
+                      ips_to_be_checked.put(vim_identifier, tmp_ip_list);
+                    }
+                  }
+                  if (!processed_vims.contains(vim_identifier)) {
+                    processed_vims.add(vim_identifier);
+                    ArrayList<String> tmp_vim_ids = new ArrayList<>();
+                    tmp_vim_ids.add(tmp_vim.getId());
+                    vim_map.put(vim_identifier, tmp_vim_ids);
+                    int_vim_map.put(vim_identifier, tmp_vim_ids);
+
+                    if (tmp_vim.getType().equals("openstack")) {
+                      OSClient tmp_os = osTools.getOSClient(tmp_os_vim);
+                      //if (!os_client_map.containsKey(vim_identifier)) {
+                      //  os_client_map.put(vim_identifier, tmp_os);
+                      //}
+                      if (!os_vim_map.containsKey(vim_identifier)) {
+                        os_vim_map.put(vim_identifier, tmp_vim);
+                      }
+                      Map<String, String> tmp_computeNodeMap = osTools.getComputeNodeMap(tmp_os);
+                      if (tmp_computeNodeMap != null) {
+                        // We collect all involved compute nodes
+                        ArrayList<String> tmp_node_names = new ArrayList<>();
+                        for (String key : tmp_computeNodeMap.keySet()) {
+
+                          tmp_node_names.add(key);
+                        }
+                        node_map.put(vim_identifier, tmp_node_names);
+                      }
+                    }
+                  } else {
+                    // in this case we already found the vim via the internal generated hash and only need to append the vim id to the hash in the map
+                    ArrayList<String> vim_ids = vim_map.get(vim_identifier);
+                    if (!vim_ids.contains(tmp_vim.getId())) {
+                      vim_ids.add(tmp_vim.getId());
+                    }
                   }
                 }
               }
@@ -1062,46 +1072,49 @@ public class Api {
           //vim_hash_map.put(i, new_hash);
           //vim_hashes.put(i, new_hash);
           if (os_vim_map.containsKey(i)) {
-            OSClient os_client = osTools.getOSClient(os_vim_map.get(i));
-            HashMap<String, ArrayList<String>> tmp_portMap =
-                osTools.getPortIps(os_client, ips_to_be_checked.get(i));
-            //logger.debug(tmp_portMap.toString());
-            // remove all old entries
-            if (port_id_map.containsKey(i)) {
-              for (String key : port_id_map.get(i)) {
-                port_ip_map.remove(key);
-                //net_name_map.remove(port_net_map.get(key));
-                port_net_map.remove(key);
+            if (OpenstackVimInstance.class.isInstance(os_vim_map.get(i))) {
+              OpenstackVimInstance osV = (OpenstackVimInstance) os_vim_map.get(i);
+              OSClient os_client = osTools.getOSClient(osV);
+              HashMap<String, ArrayList<String>> tmp_portMap =
+                  osTools.getPortIps(os_client, ips_to_be_checked.get(i));
+              //logger.debug(tmp_portMap.toString());
+              // remove all old entries
+              if (port_id_map.containsKey(i)) {
+                for (String key : port_id_map.get(i)) {
+                  port_ip_map.remove(key);
+                  //net_name_map.remove(port_net_map.get(key));
+                  port_net_map.remove(key);
+                }
+                // remove entry itself
+                port_id_map.remove(i);
               }
-              // remove entry itself
-              port_id_map.remove(i);
-            }
-            if (tmp_portMap != null) {
-              for (String p_id : tmp_portMap.keySet()) {
-                ArrayList<String> tmp_port_ids;
-                if (port_id_map.containsKey(i)) {
-                  tmp_port_ids = port_id_map.get(i);
-                  if (!tmp_port_ids.contains(p_id)) {
+              if (tmp_portMap != null) {
+                for (String p_id : tmp_portMap.keySet()) {
+                  ArrayList<String> tmp_port_ids;
+                  if (port_id_map.containsKey(i)) {
+                    tmp_port_ids = port_id_map.get(i);
+                    if (!tmp_port_ids.contains(p_id)) {
+                      tmp_port_ids.add(p_id);
+                    }
+                  } else {
+                    tmp_port_ids = new ArrayList<>();
                     tmp_port_ids.add(p_id);
+                    port_id_map.put(i, tmp_port_ids);
                   }
-                } else {
-                  tmp_port_ids = new ArrayList<>();
-                  tmp_port_ids.add(p_id);
-                  port_id_map.put(i, tmp_port_ids);
                 }
               }
-            }
-            for (String key : tmp_portMap.keySet()) {
-              port_ip_map.put(key, tmp_portMap.get(key));
-            }
-            //port_ip_map = tmp_portMap;
-            // Collect information about the compute nodes...
-            // TODO : Clear the vnfci_hypervisor map as done for the port ip + port id + port net maps
-            for (Server s : os_client.compute().servers().list()) {
-              for (String vnfci_id : vnfci_name_map.keySet()) {
-                if (vnfci_name_map.get(vnfci_id).equals(s.getName())) {
-                  //vnf_host_compute_map.put(vnfr.getName(), s.getHypervisorHostname());
-                  vnfci_hypervisor_map.put(s.getName(), s.getHypervisorHostname());
+              for (String key : tmp_portMap.keySet()) {
+                port_ip_map.put(key, tmp_portMap.get(key));
+              }
+              //port_ip_map = tmp_portMap;
+              // Collect information about the compute nodes...
+              // TODO : Clear the vnfci_hypervisor map as done for the port ip + port id + port net maps
+              for (Server s : os_client.compute().servers().list()) {
+                for (String vnfci_id : vnfci_name_map.keySet()) {
+                  if (vnfci_name_map.get(vnfci_id).equals(s.getName())) {
+                    //vnf_host_compute_map.put(vnfr.getName(), s.getHypervisorHostname());
+                    vnfci_hypervisor_map.put(s.getName(), s.getHypervisorHostname());
+                  }
                 }
               }
             }
@@ -1114,12 +1127,15 @@ public class Api {
       for (Integer i : port_id_map.keySet()) {
         if (!vims_no_update.contains(i)) {
           if (os_vim_map.containsKey(i)) {
-            OSClient os_client = osTools.getOSClient(os_vim_map.get(i));
-            for (String p_id : port_id_map.get(i)) {
-              // TODO : avoid contacting the infrastructure to often, maybe there is a better way of collecting all information in before
-              Port p = os_client.networking().port().get(p_id);
-              if (p != null) {
-                port_net_map.put(p_id, p.getNetworkId());
+            if (OpenstackVimInstance.class.isInstance(os_vim_map.get(i))) {
+              OpenstackVimInstance osV = (OpenstackVimInstance) os_vim_map.get(i);
+              OSClient os_client = osTools.getOSClient(osV);
+              for (String p_id : port_id_map.get(i)) {
+                // TODO : avoid contacting the infrastructure to often, maybe there is a better way of collecting all information in before
+                Port p = os_client.networking().port().get(p_id);
+                if (p != null) {
+                  port_net_map.put(p_id, p.getNetworkId());
+                }
               }
             }
           }
@@ -1150,30 +1166,9 @@ public class Api {
 
       this.osOverview.setVim_hashes(vim_hash_map);
 
-      // TODO : Find a proper location for the ZabbixPlugin calling
       if (nse_configuration.getZabbix()) {
         for (String host : vnfci_name_map.values()) {
-          if (!monitoring_list.contains(host)) {
-            logger.debug("Adding PMJob for " + host);
-            monitoring_list.add(host);
-            for (String m : defaultNetMetrics) {
-              if (zabbixCaller.metricExists(host, m)) {
-                String jobId = zabbixCaller.startPolling(host, m);
-                for (HashMap<String, ArrayList<String>> mm : monitoring_metric_list) {
-                  ArrayList<String> entry_metrics;
-                  if (mm.containsKey(host)) {
-                    entry_metrics = mm.get(host);
-                    entry_metrics.add(m);
-                  } else {
-                    HashMap<String, ArrayList<String>> entry = new HashMap<>();
-                    entry_metrics = new ArrayList<>();
-                    entry_metrics.add(m);
-                    entry.put(host, entry_metrics);
-                  }
-                }
-              }
-            }
-          }
+          zabbixChecker.addHost(host);
         }
       }
 
@@ -1189,8 +1184,8 @@ public class Api {
 
     } catch (SDKException e) {
       logger.error("Problem instantiating NFVORequestor");
-    } catch (FileNotFoundException e) {
-      e.printStackTrace();
-    }
+    } //catch (FileNotFoundException e) {
+    //e.printStackTrace();
+    //}
   }
 }
