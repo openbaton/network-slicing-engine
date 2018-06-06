@@ -25,7 +25,8 @@ public class ZabbixChecker {
 
   // Default metrics to be checked for
   private static final ArrayList<String> defaultNetMetrics =
-      new ArrayList<>(Arrays.asList("net.if.in[eth0]", "net.if.out[eth0]"));
+      new ArrayList<>(Arrays.asList("net.if*"));
+  //new ArrayList<>(Arrays.asList("net.if.in[eth0]", "net.if.out[eth0]"));
 
   private NetworkStatistic statistic = new NetworkStatistic();
 

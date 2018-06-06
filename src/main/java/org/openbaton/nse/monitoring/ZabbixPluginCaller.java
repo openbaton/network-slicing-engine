@@ -117,8 +117,16 @@ public class ZabbixPluginCaller {
         return false;
       } else {
         for (Item i : itemlist) {
-          if (i.getValue().equals(i.getLastValue()) && i.getValue().equals("0.0")) {
-            return false;
+          // wildcard
+          if (i.getValue() != null) {
+            if (i.getValue().equals(i.getLastValue()) && i.getValue().equals("0.0")) {
+              return false;
+            }
+          } else {
+            // wildcard case, still need to add normal value..
+            if (i.getLastValue().equals("0.0")) {
+              return false;
+            }
           }
         }
       }
