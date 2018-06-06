@@ -2,6 +2,7 @@ package org.openbaton.nse.monitoring;
 
 import org.openbaton.catalogue.nfvo.Item;
 import org.openbaton.nse.properties.NseProperties;
+import org.openbaton.nse.utils.api.NetworkStatistic;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +27,8 @@ public class ZabbixChecker {
   private static final ArrayList<String> defaultNetMetrics =
       new ArrayList<>(Arrays.asList("net.if.in[eth0]", "net.if.out[eth0]"));
 
+  private NetworkStatistic statistic = new NetworkStatistic();
+
   @SuppressWarnings("unused")
   @Autowired
   private NseProperties nse_configuration;
@@ -41,7 +44,7 @@ public class ZabbixChecker {
     //}
     synchronized (monitoring_list) {
       if (!monitoring_list.contains(host)) {
-        logger.debug("Adding PMJob for " + host);
+        //logger.debug("Adding PMJob for " + host);
         monitoring_list.add(host);
         ArrayList<String> existingMetrics = new ArrayList<>();
         for (String metric : defaultNetMetrics) {
@@ -70,9 +73,36 @@ public class ZabbixChecker {
       synchronized (monitoring_list) {
         if (!monitoring_list.isEmpty()) {
           List<Item> itemlist = zabbixCaller.pollValues(monitoring_list, defaultNetMetrics);
-          logger.debug(itemlist.toString());
+          for (Item i : itemlist) {
+            String unit = i.getMetadata().get(i.getMetric());
+            Double m;
+            if (i.getLastValue().contains("E")) {
+              String num = i.getLastValue().substring(0, i.getLastValue().indexOf("E"));
+              String exp = i.getLastValue().substring(i.getLastValue().indexOf("E") + 1);
+              m = Double.parseDouble(num) * Math.pow(10, Double.parseDouble(exp));
+            } else {
+              m = Double.parseDouble(i.getLastValue());
+            }
+            synchronized (statistic) {
+              statistic.updateValue(
+                  i.getHostname(), i.getMetric(), String.valueOf(m.longValue()), unit);
+              //logger.debug(statistic.getValue(i.getHostname(), i.getMetric()));
+            }
+            //Long m = Long.parseLong(i.getMetric());
+            //logger.debug(i.getHostname() + " : " + i.getMetric() + " : " + m + " " + unit);
+          }
         }
       }
     }
   }
+
+  public NetworkStatistic getStatistic() {
+    synchronized (statistic) {
+      return this.statistic;
+    }
+  }
+
+  //public ZabbixChecker(NetworkStatistic statistic) {
+  //  this.statistic = statistic;
+  //}
 }

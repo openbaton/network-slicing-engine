@@ -16,6 +16,7 @@ import org.openbaton.nse.adapters.openstack.NeutronQoSExecutor;
 import org.openbaton.nse.adapters.openstack.NeutronQoSHandler;
 import org.openbaton.nse.monitoring.ZabbixChecker;
 import org.openbaton.nse.monitoring.ZabbixPluginCaller;
+import org.openbaton.nse.utils.api.NetworkStatistic;
 import org.openbaton.nse.utils.openstack.OpenStackTools;
 import org.openbaton.nse.utils.openbaton.OpenBatonTools;
 import org.openbaton.nse.properties.NfvoProperties;
@@ -49,6 +50,7 @@ import java.util.*;
 public class Api {
   private static Logger logger = LoggerFactory.getLogger(Api.class);
   private NetworkOverview osOverview = new NetworkOverview();
+  private NetworkStatistic osStatistic = new NetworkStatistic();
   //private ArrayList<VimInstance> vim_list = new ArrayList<>();
   private final List<BaseVimInstance> vim_list = Collections.synchronizedList(new ArrayList<>());
   //private ArrayList<VirtualNetworkFunctionRecord> vnfr_list = new ArrayList<>();
@@ -110,6 +112,13 @@ public class Api {
   public NetworkOverview getOverview() {
     updateNetworkOverview();
     return this.osOverview;
+  }
+
+  @CrossOrigin(origins = "*")
+  @RequestMapping("/statistics")
+  @SuppressWarnings("unused")
+  public NetworkStatistic getStatistic() {
+    return zabbixChecker.getStatistic();
   }
 
   // Method to be called by the NSE-GUI to apply bandwidth limitations directly on a whole network
