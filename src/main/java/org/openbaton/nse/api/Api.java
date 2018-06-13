@@ -117,7 +117,9 @@ public class Api {
   @CrossOrigin(origins = "*")
   @RequestMapping("/statistics")
   @SuppressWarnings("unused")
-  public NetworkStatistic getStatistic() {
+  public NetworkStatistic getStatistic(
+      @RequestParam(value = "history", defaultValue = "1") String history) {
+    Integer length = Integer.parseInt(history);
     return zabbixChecker.getStatistic();
   }
 
