@@ -172,7 +172,7 @@ public class CoreModule {
     // Now we collect the credential information for each vim and pass over the
     // set of vnfrs to be processed
     logger.debug(
-        "    The NSR with id :"
+        "    The NSR with id : "
             + nsrId
             + " is built of "
             + vim_vnfrs_map.keySet().size()
@@ -263,7 +263,8 @@ public class CoreModule {
       BaseVimInstance v,
       Map<String, String> creds,
       List<? extends Port> portList) {
-    Callable<NeutronQoSExecutor> aqe =
+    //Callable<NeutronQoSExecutor> aqe =
+    NeutronQoSExecutor aqe =
         new NeutronQoSExecutor(
             vim_vnfrs_map.get(key),
             neutron_handler,
@@ -273,13 +274,14 @@ public class CoreModule {
             portList,
             osTools.getComputeNodeMap(os),
             this.getVnfHostNameComputeNodeMap(os, vim_vnfrs_map.get(key)));
-    Collection<Callable<NeutronQoSExecutor>> tasklist = new ArrayList<>();
-    tasklist.add(aqe);
-    try {
-      qtScheduler.schedule(aqe, 2, TimeUnit.SECONDS);
-      qtScheduler.invokeAll(tasklist);
-    } catch (InterruptedException e) {
-      e.printStackTrace();
-    }
+    qtScheduler.schedule(aqe, 1, TimeUnit.SECONDS);
+    //Collection<Callable<NeutronQoSExecutor>> tasklist = new ArrayList<>();
+    //tasklist.add(aqe);
+    //try {
+    //  qtScheduler.schedule(aqe, 2, TimeUnit.SECONDS);
+    //  qtScheduler.invokeAll(tasklist);
+    //} catch (InterruptedException e) {
+    //  e.printStackTrace();
+    //}
   }
 }

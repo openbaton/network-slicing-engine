@@ -20,6 +20,7 @@ package org.openbaton.nse.adapters.openstack;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.openbaton.catalogue.mano.common.ConnectionPoint;
 import org.openbaton.catalogue.mano.common.Ip;
 import org.openbaton.catalogue.mano.descriptor.InternalVirtualLink;
 import org.openbaton.catalogue.mano.descriptor.VirtualDeploymentUnit;
@@ -49,7 +50,8 @@ import java.util.concurrent.Callable;
  * Created by lgr on 20/09/16. modified by lgr on 20.07.17
  */
 @Service
-public class NeutronQoSExecutor implements Runnable, Callable {
+//public class NeutronQoSExecutor implements Runnable, Callable {
+public class NeutronQoSExecutor implements Runnable {
 
   @SuppressWarnings("unused")
   public NeutronQoSExecutor() {}
@@ -538,16 +540,10 @@ public class NeutronQoSExecutor implements Runnable, Callable {
             // We modified the check here to go over the vnfr name
             Map<String, Quality> netQualities = this.getNetQualityMap(vnfrs, vnfr.getName());
             //logger.debug("    Map qualities : " + netQualities);
-
             //logger.debug("Following QoS policies are to applied " + netQualities.toString());
             for (Ip ip : vnfci.getIps()) {
               //logger.debug(
-              //    "Checking "
-              //        + vnfci.getHostname()
-              //        + " - "
-              //        + ip.getNetName()
-              //        + " - "
-              //        + ip.getIp());
+              //    "Checking " + vnfci.getHostname() + " - " + ip.getNetName() + " - " + ip.getIp());
               String net = ip.getNetName();
               if (netQualities.keySet().contains(net)) {
                 // Avoid duplicate entries
@@ -616,8 +612,8 @@ public class NeutronQoSExecutor implements Runnable, Callable {
     return res;
   }
 
-  @Override
-  public Object call() throws Exception {
-    return null;
-  }
+  //@Override
+  //public Object call() throws Exception {
+  //  return null;
+  //}
 }

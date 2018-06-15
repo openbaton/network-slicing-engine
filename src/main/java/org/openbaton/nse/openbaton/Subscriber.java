@@ -153,29 +153,31 @@ public class Subscriber implements CommandLineRunner {
             + new Date().getTime());
     //logger.debug("ACTION: " + action + " PAYLOAD: " + nsr.toString());
     ArrayList<String> vims_to_be_updated = new ArrayList<>();
-    for (VirtualNetworkFunctionRecord vnfr : nsr.getVnfr()) {
-      for (VirtualDeploymentUnit vdu : vnfr.getVdu()) {
-        for (VNFCInstance vnfci : vdu.getVnfc_instance()) {
-          if (!vims_to_be_updated.contains(vnfci.getVim_id())) {
-            vims_to_be_updated.add(vnfci.getVim_id());
+    if (nsr != null) {
+      for (VirtualNetworkFunctionRecord vnfr : nsr.getVnfr()) {
+        for (VirtualDeploymentUnit vdu : vnfr.getVdu()) {
+          for (VNFCInstance vnfci : vdu.getVnfc_instance()) {
+            if (!vims_to_be_updated.contains(vnfci.getVim_id())) {
+              vims_to_be_updated.add(vnfci.getVim_id());
+            }
           }
         }
-      }
 
-      for (InternalVirtualLink vlr : vnfr.getVirtual_link()) {
-        if (!vlr.getQos().isEmpty()) {
-          for (String qosAttr : vlr.getQos()) {
-            //logger.debug("    found : " + qosAttr);
-            if (qosAttr.contains("maximum_bandwidth")) {
-              //logger.debug(nsr.getVnfr().toString());
-              core.addQos(nsr.getVnfr(), nsr.getId());
+        for (InternalVirtualLink vlr : vnfr.getVirtual_link()) {
+          if (!vlr.getQos().isEmpty()) {
+            for (String qosAttr : vlr.getQos()) {
+              //logger.debug("    found : " + qosAttr);
+              if (qosAttr.contains("maximum_bandwidth")) {
+                //logger.debug(nsr.getVnfr().toString());
+                core.addQos(nsr.getVnfr(), nsr.getId());
+              }
             }
           }
         }
       }
-    }
-    for (String vim : vims_to_be_updated) {
-      core.notifyChange(vim);
+      for (String vim : vims_to_be_updated) {
+        core.notifyChange(vim);
+      }
     }
   }
 
@@ -203,17 +205,19 @@ public class Subscriber implements CommandLineRunner {
     //logger.debug("ACTION: " + action + " PAYLOAD " + nsr.toString());
     // Neutron handles removing ports with the allocated QoS itself
     ArrayList<String> vims_to_be_updated = new ArrayList<>();
-    for (VirtualNetworkFunctionRecord vnfr : nsr.getVnfr()) {
-      for (VirtualDeploymentUnit vdu : vnfr.getVdu()) {
-        for (VNFCInstance vnfci : vdu.getVnfc_instance()) {
-          if (!vims_to_be_updated.contains(vnfci.getVim_id())) {
-            vims_to_be_updated.add(vnfci.getVim_id());
+    if (nsr != null) {
+      for (VirtualNetworkFunctionRecord vnfr : nsr.getVnfr()) {
+        for (VirtualDeploymentUnit vdu : vnfr.getVdu()) {
+          for (VNFCInstance vnfci : vdu.getVnfc_instance()) {
+            if (!vims_to_be_updated.contains(vnfci.getVim_id())) {
+              vims_to_be_updated.add(vnfci.getVim_id());
+            }
           }
         }
       }
-    }
-    for (String vim : vims_to_be_updated) {
-      core.notifyChange(vim);
+      for (String vim : vims_to_be_updated) {
+        core.notifyChange(vim);
+      }
     }
   }
 
@@ -240,24 +244,26 @@ public class Subscriber implements CommandLineRunner {
             + new Date().getTime());
     //logger.debug("ACTION: " + action + " PAYLOAD " + vnfr.toString());
     ArrayList<String> vims_to_be_updated = new ArrayList<>();
-    for (VirtualDeploymentUnit vdu : vnfr.getVdu()) {
-      for (VNFCInstance vnfci : vdu.getVnfc_instance()) {
-        if (!vims_to_be_updated.contains(vnfci.getVim_id())) {
-          vims_to_be_updated.add(vnfci.getVim_id());
-        }
-      }
-    }
-    for (InternalVirtualLink vlr : vnfr.getVirtual_link()) {
-      if (!vlr.getQos().isEmpty()) {
-        for (String qosAttr : vlr.getQos()) {
-          if (qosAttr.contains("maximum_bandwidth")) {
-            core.addQos(new HashSet<>(Arrays.asList(vnfr)), vnfr.getParent_ns_id());
+    if (vnfr != null) {
+      for (VirtualDeploymentUnit vdu : vnfr.getVdu()) {
+        for (VNFCInstance vnfci : vdu.getVnfc_instance()) {
+          if (!vims_to_be_updated.contains(vnfci.getVim_id())) {
+            vims_to_be_updated.add(vnfci.getVim_id());
           }
         }
       }
-    }
-    for (String vim : vims_to_be_updated) {
-      core.notifyChange(vim);
+      for (InternalVirtualLink vlr : vnfr.getVirtual_link()) {
+        if (!vlr.getQos().isEmpty()) {
+          for (String qosAttr : vlr.getQos()) {
+            if (qosAttr.contains("maximum_bandwidth")) {
+              core.addQos(new HashSet<>(Arrays.asList(vnfr)), vnfr.getParent_ns_id());
+            }
+          }
+        }
+      }
+      for (String vim : vims_to_be_updated) {
+        core.notifyChange(vim);
+      }
     }
   }
 
