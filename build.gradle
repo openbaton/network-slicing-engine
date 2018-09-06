@@ -52,8 +52,12 @@ apply from: 'gradle/gradle/git.helpers.gradle'
 apply from: 'gradle/gradle/command.line.helper.gradle'
 
 project.ext {
-    //openbatonVersion = "5.0.0"
-    openbatonVersion = "5.2.1"
+
+    sdkVersion='6.0.0-RC2'
+    //exceptionVersion='5.2.1'
+    //monitoringVersion='5.2.1'
+    exceptionVersion='6.0.0-RC1'
+    monitoringVersion='6.0.0-RC1'
 
     /**
      * Application Related Version
@@ -74,9 +78,9 @@ dependencies {
 
     compile("org.springframework.boot:spring-boot-starter-amqp")
 
-    compile 'org.openbaton:sdk:' + openbatonVersion
-    compile 'org.openbaton:exception:' + openbatonVersion
-    compile 'org.openbaton:monitoring:' + openbatonVersion
+    compile 'org.openbaton:sdk:' + sdkVersion
+    compile 'org.openbaton:exception:' + exceptionVersion
+    compile 'org.openbaton:monitoring:' + monitoringVersion
 
 //    compile ('org.apache.jclouds.driver:jclouds-slf4j:1.9.2')
 //    compile ('org.apache.jclouds.driver:jclouds-sshj:1.9.2')

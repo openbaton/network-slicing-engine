@@ -21,9 +21,11 @@ package org.openbaton.nse.utils.openbaton;
 import org.openbaton.catalogue.nfvo.viminstances.BaseVimInstance;
 import org.openbaton.catalogue.nfvo.viminstances.OpenstackVimInstance;
 import org.openbaton.catalogue.security.Project;
-import org.openbaton.exceptions.NotFoundException;
+import org.openbaton.catalogue.security.ServiceMetadata;
 import org.openbaton.nse.properties.NfvoProperties;
+import org.openbaton.nse.properties.NseProperties;
 import org.openbaton.sdk.NFVORequestor;
+import org.openbaton.sdk.NfvoRequestorBuilder;
 import org.openbaton.sdk.api.exception.SDKException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +36,7 @@ import org.springframework.context.annotation.Configuration;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -47,29 +50,31 @@ public class OpenBatonTools {
   @Autowired
   private NfvoProperties nfvoProperties;
 
+  @SuppressWarnings("unused")
+  @Autowired
+  private NseProperties nseProperties;
+
   private static Logger logger = LoggerFactory.getLogger(OpenBatonTools.class);
 
   // This bean is actually used to instantiate
 
   @Bean
   @SuppressWarnings("unused")
-  public NFVORequestor getNFVORequestor()
-      throws SDKException, NotFoundException, FileNotFoundException {
+  public NFVORequestor getNFVORequestor() throws SDKException, FileNotFoundException {
     if (!isNfvoStarted(nfvoProperties.getIp(), nfvoProperties.getPort())) {
       logger.error("NFVO is not available");
       System.exit(1);
     }
     NFVORequestor nfvoRequestor =
-        new NFVORequestor(
-            nfvoProperties.getUsername(),
-            nfvoProperties.getPassword(),
-            "*",
-            false,
-            nfvoProperties.getIp(),
-            nfvoProperties.getPort(),
-            "1");
+        NfvoRequestorBuilder.create()
+            .nfvoIp(nfvoProperties.getIp())
+            .nfvoPort(Integer.parseInt(nfvoProperties.getPort()))
+            .username(nfvoProperties.getUsername())
+            .password(nfvoProperties.getPassword())
+            .sslEnabled(nfvoProperties.getSsl().isEnabled())
+            .version("1")
+            .build();
     logger.info("Starting the Open Baton Manager Bean");
-
     try {
       logger.info("Finding default project");
       boolean found = false;
@@ -81,7 +86,7 @@ public class OpenBatonTools {
         }
       }
       if (!found) {
-        throw new NotFoundException("Not found project " + nfvoProperties.getProject().getName());
+        logger.error("Not found project " + nfvoProperties.getProject().getName());
       }
     } catch (SDKException e) {
       throw new SDKException(e);
@@ -158,9 +163,42 @@ public class OpenBatonTools {
       String ip, String port, String project_id, String service_key) {
     NFVORequestor requestor = null;
     try {
-      // TODO : instead of false check for enabled SSL
-      // openbaton.getSsl().isEnabled()
-      requestor = new NFVORequestor("nse", project_id, ip, port, "1", false, service_key);
+      if (service_key.isEmpty()) {
+        logger.warn("No service key provided. Trying to self register as new service...");
+        if (nfvoProperties.getUsername().isEmpty() && nfvoProperties.getPassword().isEmpty()) {
+          logger.error("Not found user and/or password to self register as a new service...");
+        }
+        ServiceMetadata serviceMetadata = new ServiceMetadata();
+        serviceMetadata.setName("autoscaling-engine");
+        ArrayList<String> roles = new ArrayList<>();
+        roles.add("*");
+        NFVORequestor tmpNfvoRequestor =
+            NfvoRequestorBuilder.create()
+                .nfvoIp(nfvoProperties.getIp())
+                .nfvoPort(Integer.parseInt(nfvoProperties.getPort()))
+                .username(nfvoProperties.getUsername())
+                .password(nfvoProperties.getPassword())
+                .sslEnabled(nfvoProperties.getSsl().isEnabled())
+                .version("1")
+                .build();
+
+        String serviceKey = tmpNfvoRequestor.getServiceAgent().create("nse", roles);
+        logger.info("Received service key: " + serviceKey);
+        NseProperties.Service serv = new NseProperties.Service();
+        serv.setKey(serviceKey);
+        nseProperties.setService(serv);
+      }
+
+      requestor =
+          NfvoRequestorBuilder.create()
+              .nfvoIp(ip)
+              .nfvoPort(Integer.parseInt(port))
+              .serviceName("nse")
+              .serviceKey(service_key)
+              .projectId("*")
+              .sslEnabled(nfvoProperties.getSsl().isEnabled())
+              .version("1")
+              .build();
     } catch (SDKException e) {
       logger.error("Problem instantiating NFVORequestor for project " + project_id);
     }

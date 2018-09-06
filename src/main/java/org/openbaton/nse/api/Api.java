@@ -27,6 +27,7 @@ import org.openbaton.nse.utils.openstack.OpenStackNetwork;
 import org.openbaton.nse.utils.openstack.OpenStackPort;
 import org.openbaton.nse.utils.openstack.OpenStackQoSPolicy;
 import org.openbaton.sdk.NFVORequestor;
+import org.openbaton.sdk.NfvoRequestorBuilder;
 import org.openbaton.sdk.api.exception.SDKException;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.model.compute.Server;
@@ -146,29 +147,20 @@ public class Api {
         if (v.getId().equals(vim)) {
           if (OpenstackVimInstance.class.isInstance(v)) {
             OpenstackVimInstance osV = (OpenstackVimInstance) v;
-            NFVORequestor nfvoRequestor;
-            try {
-              nfvoRequestor =
-                  new NFVORequestor(
-                      "nse",
-                      project,
-                      nfvo_configuration.getIp(),
-                      nfvo_configuration.getPort(),
-                      "1",
-                      false,
-                      nse_configuration.getService().getKey());
-              OSClient tmp_os = osTools.getOSClient(osV);
-              String token = osTools.getAuthToken(tmp_os, osV);
-              String neutron_access = osTools.getNeutronEndpoint(osV);
-              Map<String, String> creds =
-                  obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
-              creds.put("neutron", neutron_access);
-              NeutronQoSExecutor neutron_executor =
-                  new NeutronQoSExecutor(neutron_handler, token, v, creds);
-              neutron_executor.assignQoSPolicyToNetwork(net, policy);
-            } catch (SDKException e) {
-              e.printStackTrace();
-            }
+            NFVORequestor nfvoRequestor =
+                obTools.getNFVORequestor(
+                    nfvo_configuration.getIp(),
+                    nfvo_configuration.getPort(),
+                    project,
+                    nse_configuration.getService().getKey());
+            OSClient tmp_os = osTools.getOSClient(osV);
+            String token = osTools.getAuthToken(tmp_os, osV);
+            String neutron_access = osTools.getNeutronEndpoint(osV);
+            Map<String, String> creds = obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
+            creds.put("neutron", neutron_access);
+            NeutronQoSExecutor neutron_executor =
+                new NeutronQoSExecutor(neutron_handler, token, v, creds);
+            neutron_executor.assignQoSPolicyToNetwork(net, policy);
           } else {
             logger.warn("VIM type " + v.getType() + " not supported yet");
           }
@@ -201,29 +193,20 @@ public class Api {
         if (v.getId().equals(vim)) {
           if (OpenstackVimInstance.class.isInstance(v)) {
             OpenstackVimInstance osV = (OpenstackVimInstance) v;
-            NFVORequestor nfvoRequestor;
-            try {
-              nfvoRequestor =
-                  new NFVORequestor(
-                      "nse",
-                      project,
-                      nfvo_configuration.getIp(),
-                      nfvo_configuration.getPort(),
-                      "1",
-                      false,
-                      nse_configuration.getService().getKey());
-              OSClient tmp_os = osTools.getOSClient(osV);
-              String token = osTools.getAuthToken(tmp_os, osV);
-              String neutron_access = osTools.getNeutronEndpoint(osV);
-              Map<String, String> creds =
-                  obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
-              creds.put("neutron", neutron_access);
-              NeutronQoSExecutor neutron_executor =
-                  new NeutronQoSExecutor(neutron_handler, token, v, creds);
-              neutron_executor.assignQoSPolicyToPort(port, policy);
-            } catch (SDKException e) {
-              e.printStackTrace();
-            }
+            NFVORequestor nfvoRequestor =
+                obTools.getNFVORequestor(
+                    nfvo_configuration.getIp(),
+                    nfvo_configuration.getPort(),
+                    project,
+                    nse_configuration.getService().getKey());
+            OSClient tmp_os = osTools.getOSClient(osV);
+            String token = osTools.getAuthToken(tmp_os, osV);
+            String neutron_access = osTools.getNeutronEndpoint(osV);
+            Map<String, String> creds = obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
+            creds.put("neutron", neutron_access);
+            NeutronQoSExecutor neutron_executor =
+                new NeutronQoSExecutor(neutron_handler, token, v, creds);
+            neutron_executor.assignQoSPolicyToPort(port, policy);
           } else {
             logger.warn("VIM type " + v.getType() + " not supported yet");
           }
@@ -253,29 +236,20 @@ public class Api {
         if (v.getId().equals(vim)) {
           if (OpenstackVimInstance.class.isInstance(v)) {
             OpenstackVimInstance osV = (OpenstackVimInstance) v;
-            NFVORequestor nfvoRequestor;
-            try {
-              nfvoRequestor =
-                  new NFVORequestor(
-                      "nse",
-                      project,
-                      nfvo_configuration.getIp(),
-                      nfvo_configuration.getPort(),
-                      "1",
-                      false,
-                      nse_configuration.getService().getKey());
-              OSClient tmp_os = osTools.getOSClient(osV);
-              String token = osTools.getAuthToken(tmp_os, osV);
-              String neutron_access = osTools.getNeutronEndpoint(osV);
-              Map<String, String> creds =
-                  obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
-              creds.put("neutron", neutron_access);
-              NeutronQoSExecutor neutron_executor =
-                  new NeutronQoSExecutor(neutron_handler, token, v, creds);
-              neutron_executor.deleteQoSPolicy(id);
-            } catch (SDKException e) {
-              e.printStackTrace();
-            }
+            NFVORequestor nfvoRequestor =
+                obTools.getNFVORequestor(
+                    nfvo_configuration.getIp(),
+                    nfvo_configuration.getPort(),
+                    project,
+                    nse_configuration.getService().getKey());
+            OSClient tmp_os = osTools.getOSClient(osV);
+            String token = osTools.getAuthToken(tmp_os, osV);
+            String neutron_access = osTools.getNeutronEndpoint(osV);
+            Map<String, String> creds = obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
+            creds.put("neutron", neutron_access);
+            NeutronQoSExecutor neutron_executor =
+                new NeutronQoSExecutor(neutron_handler, token, v, creds);
+            neutron_executor.deleteQoSPolicy(id);
           } else {
             logger.warn("VIM type " + v.getType() + " not supported yet");
           }
@@ -308,29 +282,20 @@ public class Api {
         if (v.getId().equals(vim)) {
           if (OpenstackVimInstance.class.isInstance(v)) {
             OpenstackVimInstance osV = (OpenstackVimInstance) v;
-            NFVORequestor nfvoRequestor;
-            try {
-              nfvoRequestor =
-                  new NFVORequestor(
-                      "nse",
-                      project,
-                      nfvo_configuration.getIp(),
-                      nfvo_configuration.getPort(),
-                      "1",
-                      false,
-                      nse_configuration.getService().getKey());
-              OSClient tmp_os = osTools.getOSClient(osV);
-              String token = osTools.getAuthToken(tmp_os, osV);
-              String neutron_access = osTools.getNeutronEndpoint(osV);
-              Map<String, String> creds =
-                  obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
-              creds.put("neutron", neutron_access);
-              NeutronQoSExecutor neutron_executor =
-                  new NeutronQoSExecutor(neutron_handler, token, v, creds);
-              neutron_executor.deleteBandwidthRule(rule_id, policy_id);
-            } catch (SDKException e) {
-              e.printStackTrace();
-            }
+            NFVORequestor nfvoRequestor =
+                obTools.getNFVORequestor(
+                    nfvo_configuration.getIp(),
+                    nfvo_configuration.getPort(),
+                    project,
+                    nse_configuration.getService().getKey());
+            OSClient tmp_os = osTools.getOSClient(osV);
+            String token = osTools.getAuthToken(tmp_os, osV);
+            String neutron_access = osTools.getNeutronEndpoint(osV);
+            Map<String, String> creds = obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
+            creds.put("neutron", neutron_access);
+            NeutronQoSExecutor neutron_executor =
+                new NeutronQoSExecutor(neutron_handler, token, v, creds);
+            neutron_executor.deleteBandwidthRule(rule_id, policy_id);
           } else {
             logger.warn("VIM type " + v.getType() + " not supported yet");
           }
@@ -378,29 +343,20 @@ public class Api {
         if (v.getId().equals(vim)) {
           if (OpenstackVimInstance.class.isInstance(v)) {
             OpenstackVimInstance osV = (OpenstackVimInstance) v;
-            NFVORequestor nfvoRequestor;
-            try {
-              nfvoRequestor =
-                  new NFVORequestor(
-                      "nse",
-                      project,
-                      nfvo_configuration.getIp(),
-                      nfvo_configuration.getPort(),
-                      "1",
-                      false,
-                      nse_configuration.getService().getKey());
-              OSClient tmp_os = osTools.getOSClient(osV);
-              String token = osTools.getAuthToken(tmp_os, osV);
-              String neutron_access = osTools.getNeutronEndpoint(osV);
-              Map<String, String> creds =
-                  obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
-              creds.put("neutron", neutron_access);
-              NeutronQoSExecutor neutron_executor =
-                  new NeutronQoSExecutor(neutron_handler, token, v, creds);
-              neutron_executor.createBandwidthRule(rule, id);
-            } catch (SDKException e) {
-              e.printStackTrace();
-            }
+            NFVORequestor nfvoRequestor =
+                obTools.getNFVORequestor(
+                    nfvo_configuration.getIp(),
+                    nfvo_configuration.getPort(),
+                    project,
+                    nse_configuration.getService().getKey());
+            OSClient tmp_os = osTools.getOSClient(osV);
+            String token = osTools.getAuthToken(tmp_os, osV);
+            String neutron_access = osTools.getNeutronEndpoint(osV);
+            Map<String, String> creds = obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
+            creds.put("neutron", neutron_access);
+            NeutronQoSExecutor neutron_executor =
+                new NeutronQoSExecutor(neutron_handler, token, v, creds);
+            neutron_executor.createBandwidthRule(rule, id);
           } else {
             logger.warn("VIM type " + v.getType() + " not supported yet");
           }
@@ -446,29 +402,20 @@ public class Api {
         if (v.getId().equals(vim)) {
           if (OpenstackVimInstance.class.isInstance(v)) {
             OpenstackVimInstance osV = (OpenstackVimInstance) v;
-            NFVORequestor nfvoRequestor;
-            try {
-              nfvoRequestor =
-                  new NFVORequestor(
-                      "nse",
-                      project,
-                      nfvo_configuration.getIp(),
-                      nfvo_configuration.getPort(),
-                      "1",
-                      false,
-                      nse_configuration.getService().getKey());
-              OSClient tmp_os = osTools.getOSClient(osV);
-              String token = osTools.getAuthToken(tmp_os, osV);
-              String neutron_access = osTools.getNeutronEndpoint(osV);
-              Map<String, String> creds =
-                  obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
-              creds.put("neutron", neutron_access);
-              NeutronQoSExecutor neutron_executor =
-                  new NeutronQoSExecutor(neutron_handler, token, v, creds);
-              neutron_executor.createQoSPolicy(policy);
-            } catch (SDKException e) {
-              e.printStackTrace();
-            }
+            NFVORequestor nfvoRequestor =
+                obTools.getNFVORequestor(
+                    nfvo_configuration.getIp(),
+                    nfvo_configuration.getPort(),
+                    project,
+                    nse_configuration.getService().getKey());
+            OSClient tmp_os = osTools.getOSClient(osV);
+            String token = osTools.getAuthToken(tmp_os, osV);
+            String neutron_access = osTools.getNeutronEndpoint(osV);
+            Map<String, String> creds = obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
+            creds.put("neutron", neutron_access);
+            NeutronQoSExecutor neutron_executor =
+                new NeutronQoSExecutor(neutron_handler, token, v, creds);
+            neutron_executor.createQoSPolicy(policy);
           } else {
             logger.warn("VIM type " + v.getType() + " not supported yet");
           }
@@ -492,30 +439,20 @@ public class Api {
         if (v.getId().equals(vim)) {
           if (OpenstackVimInstance.class.isInstance(v)) {
             OpenstackVimInstance osV = (OpenstackVimInstance) v;
-            NFVORequestor nfvoRequestor;
-            try {
-              nfvoRequestor =
-                  new NFVORequestor(
-                      "nse",
-                      project,
-                      nfvo_configuration.getIp(),
-                      nfvo_configuration.getPort(),
-                      "1",
-                      false,
-                      nse_configuration.getService().getKey());
-
-              OSClient tmp_os = osTools.getOSClient(osV);
-              String token = osTools.getAuthToken(tmp_os, osV);
-              String neutron_access = osTools.getNeutronEndpoint(osV);
-              Map<String, String> creds =
-                  obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
-              creds.put("neutron", neutron_access);
-              NeutronQoSExecutor neutron_executor =
-                  new NeutronQoSExecutor(neutron_handler, token, v, creds);
-              port_list = neutron_executor.listPorts();
-            } catch (SDKException e) {
-              e.printStackTrace();
-            }
+            NFVORequestor nfvoRequestor =
+                obTools.getNFVORequestor(
+                    nfvo_configuration.getIp(),
+                    nfvo_configuration.getPort(),
+                    project,
+                    nse_configuration.getService().getKey());
+            OSClient tmp_os = osTools.getOSClient(osV);
+            String token = osTools.getAuthToken(tmp_os, osV);
+            String neutron_access = osTools.getNeutronEndpoint(osV);
+            Map<String, String> creds = obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
+            creds.put("neutron", neutron_access);
+            NeutronQoSExecutor neutron_executor =
+                new NeutronQoSExecutor(neutron_handler, token, v, creds);
+            port_list = neutron_executor.listPorts();
           } else {
             logger.warn("VIM type " + v.getType() + " not supported yet");
           }
@@ -539,30 +476,20 @@ public class Api {
         if (v.getId().equals(vim)) {
           if (OpenstackVimInstance.class.isInstance(v)) {
             OpenstackVimInstance osV = (OpenstackVimInstance) v;
-            NFVORequestor nfvoRequestor;
-            try {
-              nfvoRequestor =
-                  new NFVORequestor(
-                      "nse",
-                      project,
-                      nfvo_configuration.getIp(),
-                      nfvo_configuration.getPort(),
-                      "1",
-                      false,
-                      nse_configuration.getService().getKey());
-
-              OSClient tmp_os = osTools.getOSClient(osV);
-              String token = osTools.getAuthToken(tmp_os, osV);
-              String neutron_access = osTools.getNeutronEndpoint(osV);
-              Map<String, String> creds =
-                  obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
-              creds.put("neutron", neutron_access);
-              NeutronQoSExecutor neutron_executor =
-                  new NeutronQoSExecutor(neutron_handler, token, v, creds);
-              net_list = neutron_executor.listNetworks();
-            } catch (SDKException e) {
-              e.printStackTrace();
-            }
+            NFVORequestor nfvoRequestor =
+                obTools.getNFVORequestor(
+                    nfvo_configuration.getIp(),
+                    nfvo_configuration.getPort(),
+                    project,
+                    nse_configuration.getService().getKey());
+            OSClient tmp_os = osTools.getOSClient(osV);
+            String token = osTools.getAuthToken(tmp_os, osV);
+            String neutron_access = osTools.getNeutronEndpoint(osV);
+            Map<String, String> creds = obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
+            creds.put("neutron", neutron_access);
+            NeutronQoSExecutor neutron_executor =
+                new NeutronQoSExecutor(neutron_handler, token, v, creds);
+            net_list = neutron_executor.listNetworks();
           } else {
             logger.warn("VIM type " + v.getType() + " not supported yet");
           }
@@ -586,30 +513,20 @@ public class Api {
         if (v.getId().equals(vim)) {
           if (OpenstackVimInstance.class.isInstance(v)) {
             OpenstackVimInstance osV = (OpenstackVimInstance) v;
-            NFVORequestor nfvoRequestor;
-            try {
-              nfvoRequestor =
-                  new NFVORequestor(
-                      "nse",
-                      project,
-                      nfvo_configuration.getIp(),
-                      nfvo_configuration.getPort(),
-                      "1",
-                      false,
-                      nse_configuration.getService().getKey());
-
-              OSClient tmp_os = osTools.getOSClient(osV);
-              String token = osTools.getAuthToken(tmp_os, osV);
-              String neutron_access = osTools.getNeutronEndpoint(osV);
-              Map<String, String> creds =
-                  obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
-              creds.put("neutron", neutron_access);
-              NeutronQoSExecutor neutron_executor =
-                  new NeutronQoSExecutor(neutron_handler, token, v, creds);
-              qos_policy_list = neutron_executor.getNeutronQosRules();
-            } catch (SDKException e) {
-              e.printStackTrace();
-            }
+            NFVORequestor nfvoRequestor =
+                obTools.getNFVORequestor(
+                    nfvo_configuration.getIp(),
+                    nfvo_configuration.getPort(),
+                    project,
+                    nse_configuration.getService().getKey());
+            OSClient tmp_os = osTools.getOSClient(osV);
+            String token = osTools.getAuthToken(tmp_os, osV);
+            String neutron_access = osTools.getNeutronEndpoint(osV);
+            Map<String, String> creds = obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
+            creds.put("neutron", neutron_access);
+            NeutronQoSExecutor neutron_executor =
+                new NeutronQoSExecutor(neutron_handler, token, v, creds);
+            qos_policy_list = neutron_executor.getNeutronQosRules();
           } else {
             logger.warn("VIM type " + v.getType() + " not supported yet");
           }
@@ -630,13 +547,10 @@ public class Api {
         "Received SCALE out request for vnfr " + vnfr_id + " belonging to project " + project_id);
     try {
       NFVORequestor nfvoRequestor =
-          new NFVORequestor(
-              "nse",
-              project_id,
+          obTools.getNFVORequestor(
               nfvo_configuration.getIp(),
               nfvo_configuration.getPort(),
-              "1",
-              false,
+              project_id,
               nse_configuration.getService().getKey());
       synchronized (vnfr_list) {
         for (VirtualNetworkFunctionRecord vnfr : vnfr_list) {
@@ -680,13 +594,10 @@ public class Api {
         "Received SCALE in request for vnfr " + vnfr_id + " belonging to project " + project_id);
     try {
       NFVORequestor nfvoRequestor =
-          new NFVORequestor(
-              "nse",
-              project_id,
+          obTools.getNFVORequestor(
               nfvo_configuration.getIp(),
               nfvo_configuration.getPort(),
-              "1",
-              false,
+              project_id,
               nse_configuration.getService().getKey());
       synchronized (vnfr_list) {
         for (VirtualNetworkFunctionRecord vnfr : vnfr_list) {
@@ -846,25 +757,22 @@ public class Api {
     this.osOverview = new NetworkOverview();
     try {
       nfvo_default_req =
-          new NFVORequestor(
-              nfvo_configuration.getUsername(),
-              nfvo_configuration.getPassword(),
-              "*",
-              false,
-              nfvo_configuration.getIp(),
-              nfvo_configuration.getPort(),
-              "1");
+          NfvoRequestorBuilder.create()
+              .nfvoIp(nfvo_configuration.getIp())
+              .nfvoPort(Integer.parseInt(nfvo_configuration.getPort()))
+              .username(nfvo_configuration.getUsername())
+              .password(nfvo_configuration.getPassword())
+              .sslEnabled(nfvo_configuration.getSsl().isEnabled())
+              .version("1")
+              .build();
       // Iterate over all projects and collect all NSRs
       for (Project project : nfvo_default_req.getProjectAgent().findAll()) {
         //logger.debug("Checking project : " + project.getName());
         nfvo_nsr_req =
-            new NFVORequestor(
-                "nse",
-                project.getId(),
+            obTools.getNFVORequestor(
                 nfvo_configuration.getIp(),
                 nfvo_configuration.getPort(),
-                "1",
-                false,
+                project.getId(),
                 nse_configuration.getService().getKey());
         List<NetworkServiceRecord> nsr_list = nfvo_nsr_req.getNetworkServiceRecordAgent().findAll();
         if (!nsr_list.isEmpty()) {
