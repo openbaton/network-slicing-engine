@@ -16,7 +16,7 @@
  *
  */
 
-package org.openbaton.nse.utils;
+package org.openbaton.nse.utils.openbaton;
 
 import org.openbaton.catalogue.mano.record.NetworkServiceRecord;
 import org.openbaton.catalogue.nfvo.Action;

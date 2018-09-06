@@ -16,13 +16,13 @@
  *
  */
 
-package org.openbaton.nse.beans.adapters.openstack;
+package org.openbaton.nse.adapters.openstack;
 
-//import org.jclouds.openstack.keystone.v2_0.domain.Access;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -36,13 +36,12 @@ import java.util.Map;
 /**
  * Created by lgr on 9/21/16. modified by lgr on 20.07.17
  */
+@Service
 public class NeutronQoSHandler {
 
-  private Logger logger;
+  private Logger logger = LoggerFactory.getLogger(NeutronQoSHandler.class);
 
-  public NeutronQoSHandler() {
-    this.logger = LoggerFactory.getLogger(this.getClass());
-  };
+  public NeutronQoSHandler() {}
 
   /**
    * Builds up a simple http_connection to the neutron rest api
@@ -54,8 +53,8 @@ public class NeutronQoSHandler {
   public String neutron_http_connection(
       String t_url, String method, Object access, JSONObject payload) {
     //logger.debug("Building up neutron http connection : " + t_url + " method : " + method);
-    HttpURLConnection connection = null;
-    URL url = null;
+    HttpURLConnection connection;
+    URL url;
     try {
       url = new URL(t_url);
       connection = (HttpURLConnection) url.openConnection();
@@ -63,14 +62,16 @@ public class NeutronQoSHandler {
         connection.setRequestMethod("PUT");
         connection.setRequestProperty("Accept", "application/json");
         connection.setRequestProperty("Content-Type", "application/json");
-      } else if (method.equals("POST")) {
-
+      } else if (method.equals("DELETE")) {
+        connection.setRequestMethod("DELETE");
+        connection.setRequestProperty("Accept", "application/json");
+        connection.setRequestProperty("Content-Type", "application/json");
       } else if (method.equals("GET")) {
         connection.setRequestProperty("Accept", "application/json");
         connection.setRequestProperty("Content-Type", "application/json");
       } else {
-        logger.error("No method defined for http request while contacting neutron");
-        return null;
+        logger.debug("No method defined for http request while contacting neutron");
+        //return null;
       }
       connection.setDoOutput(true);
       //if (access instanceof Access) {
@@ -118,9 +119,9 @@ public class NeutronQoSHandler {
    * @return a Hash Map containing the policy names and their ids
    */
   public Map<String, String> parsePolicyMap(String response) {
-    Map<String, String> tmp = new HashMap<String, String>();
+    Map<String, String> tmp = new HashMap<>();
     try {
-      logger.debug("    Parsing existing QoS policies");
+      //logger.debug("    Parsing existing QoS policies");
       // TODO : catch null objects
       JSONObject ans = new JSONObject(response);
       //logger.debug("Created JSON-Object : "+ans.toString());
@@ -132,21 +133,6 @@ public class NeutronQoSHandler {
         //logger.debug(o.toString());
         tmp.put(o.getString("name"), o.getString("id"));
         //logger.debug("        [" + i + "] " + o.getString("name") + " ");
-        JSONArray rules = o.getJSONArray("rules");
-        if (rules != null) {
-          for (int x = 0; x < rules.length(); x++) {
-            JSONObject r = rules.getJSONObject(x);
-            //            logger.debug(
-            //                "            rule "
-            //                    + x
-            //                    + " - "
-            //                    + r.getString("type")
-            //                    + " : max_kbps - "
-            //                    + r.getInt("max_kbps")
-            //                    + " ### max_burst_kbps - "
-            //                    + r.getInt("max_burst_kbps"));
-          }
-        }
       }
     } catch (Exception e) {
       logger.error(e.getMessage());
@@ -157,7 +143,7 @@ public class NeutronQoSHandler {
 
   public boolean checkForBandwidthRule(String response, String max_kbps) {
     try {
-      logger.debug("    Parsing policy");
+      //logger.debug("    Parsing policy");
       int bw = Integer.parseInt(max_kbps);
       JSONObject policy = new JSONObject(response).getJSONObject("policy");
       // Check if the policy is shared
@@ -220,7 +206,7 @@ public class NeutronQoSHandler {
   //  }
 
   public boolean checkPortQoSPolicy(String response, String id) {
-    String port_qos_id = null;
+    String port_qos_id;
     try {
       Object o = new JSONObject(response).getJSONObject("port").get("qos_policy_id");
       if (o == null) {
@@ -229,12 +215,12 @@ public class NeutronQoSHandler {
         port_qos_id = (String) o;
         if (port_qos_id.equals(id)) {
           // we do not need a update of the port
-          logger.debug("    Port already got the correct QoS policy assigned");
+          //logger.debug("    Port already got the correct QoS policy assigned");
           return true;
         }
       }
     } catch (ClassCastException e) {
-      logger.debug("    Port does not have a QoS policy assigned");
+      //logger.debug("    Port does not have a QoS policy assigned");
     }
     // We need a update of the port
     return false;
@@ -253,7 +239,12 @@ public class NeutronQoSHandler {
 
   public JSONObject createPolicyUpdatePayload(String id) {
     // TODO : catch null objects
-    JSONObject tmp = new JSONObject("{\"port\":{\"qos_policy_id\":\"" + id + "\"}}");
+    JSONObject tmp;
+    if (id.equals("no_policy")) {
+      tmp = new JSONObject("{\"port\":{\"qos_policy_id\":null}}");
+    } else {
+      tmp = new JSONObject("{\"port\":{\"qos_policy_id\":\"" + id + "\"}}");
+    }
     //logger.debug("Created policy update payload : " + tmp.toString());
     return tmp;
   }
@@ -266,62 +257,25 @@ public class NeutronQoSHandler {
     return tmp;
   }
 
+  public JSONObject createBandwidthLimitRulePayload(String type, String max_rate, String burst) {
+    // TODO : catch null objects
+    JSONObject tmp =
+        new JSONObject(
+            "{\""
+                + type
+                + "\":{\"max_kbps\":\""
+                + max_rate
+                + "\",\"max_burst_kbps\":\""
+                + burst
+                + "\"}}");
+    //logger.debug("Created bandwidth_limit_rule payload : " + tmp.toString());
+    return tmp;
+  }
+
   public String parsePolicyId(String response) {
     // TODO : catch null objects
     JSONObject pol = new JSONObject(response);
     String tmp = pol.getJSONObject("policy").getString("id");
     return tmp;
-  }
-
-  public String get_service_endpoint(String t_url, String access, String service_id) {
-    //logger.debug("Building up nova http connection : " + t_url);
-    HttpURLConnection connection = null;
-    URL url = null;
-    try {
-      url = new URL(t_url);
-      connection = (HttpURLConnection) url.openConnection();
-      connection.setDoOutput(true);
-      connection.setRequestMethod("GET");
-      connection.setRequestProperty("Accept", "application/json");
-      connection.setRequestProperty("Content-Type", "application/json");
-      connection.setRequestProperty("X-Auth-Token", access);
-      connection.setRequestProperty("User-Agent", "python-novaclient");
-      InputStream is = connection.getInputStream();
-      BufferedReader rd = new BufferedReader(new InputStreamReader(is));
-      StringBuilder response = new StringBuilder();
-      String line;
-      while ((line = rd.readLine()) != null) {
-        response.append(line);
-        response.append('\r');
-      }
-      rd.close();
-      connection.disconnect();
-      if (response != null) {
-        //logger.debug("Got response from nova : " + response.toString());
-      } else {
-        logger.debug("Got response from nova : null ");
-      }
-      JSONObject tmp = new JSONObject(response.toString());
-      JSONArray endpoints = tmp.getJSONArray("endpoints");
-      logger.debug("There are " + endpoints.length() + " endpoints listed");
-      for (int i = 0; i < endpoints.length(); i++) {
-        JSONObject o = endpoints.getJSONObject(i);
-        if (o.getString("service_id").equals(service_id)) {
-          if (o.getString("interface").equals("public")) {
-            return o.getString("url");
-          }
-        }
-      }
-      logger.error("Did not found endpoint");
-      return null;
-
-    } catch (Exception e) {
-      logger.error("Problem contacting openstack-nova");
-      logger.error(e.getMessage());
-      logger.error(e.toString());
-      e.printStackTrace();
-      // If we have found a problem, we should probably end this thread
-      return null;
-    }
   }
 }

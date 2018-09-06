@@ -17,7 +17,7 @@
  */
 package org.openbaton.nse.tests;
 
-import org.openbaton.catalogue.nfvo.VimInstance;
+/*
 import org.openbaton.catalogue.security.Project;
 import org.openbaton.nse.properties.NfvoProperties;
 import org.openbaton.sdk.NFVORequestor;
@@ -34,13 +34,17 @@ import org.openstack4j.openstack.OSFactory;
 import java.io.FileNotFoundException;
 import java.util.HashMap;
 import java.util.Map;
+*/
 
 /**
  * Created by lgr on 10/4/17.
  */
 public class RequestorTest {
-  public static void main(String[] args)
+  public static void main(String[] args) {}
+  /*
       throws SDKException, FileNotFoundException, ClassNotFoundException {
+
+
     NFVORequestor requestor =
         new NFVORequestor("nse", "project_id", "127.0.0.1", "8080", "1", false, "service-key");
     for (Project p : requestor.getProjectAgent().findAll()) {
@@ -151,4 +155,5 @@ public class RequestorTest {
   private static boolean isV3API(VimInstance vimInstance) {
     return vimInstance.getAuthUrl().endsWith("/v3") || vimInstance.getAuthUrl().endsWith("/v3.0");
   }
+  */
 }

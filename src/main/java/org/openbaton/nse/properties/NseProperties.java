@@ -20,10 +20,9 @@ package org.openbaton.nse.properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Service;
-
-import javax.annotation.PostConstruct;
 
 /**
  * Created by maa on 01.02.16. modified by lgr on 20.07.17
@@ -32,97 +31,19 @@ import javax.annotation.PostConstruct;
 @ConfigurationProperties(prefix = "nse")
 public class NseProperties {
 
-  //  private String baseUrl;
-  //
-  //  private String driver;
-
-  private String library_type;
-
-  //private String key;
-
   private Logger logger = LoggerFactory.getLogger(this.getClass());
 
   private Service service;
+  private String user;
+  private String password;
 
-  //  public String getBaseUrl() {
-  //    return baseUrl;
-  //  }
-  //
-  //  public void setBaseUrl(String baseUrl) {
-  //    this.baseUrl = baseUrl;
-  //  }
+  @Value("${zabbix:false}")
+  private boolean zabbix;
 
-  //  public String getDriver() {
-  //    return driver;
-  //  }
-  //
-  //  public void setDriver(String driver) {
-  //    this.driver = driver;
-  //  }
-
-  public String getLibrary_type() {
-    return library_type;
-  }
-
-  public void setLibrary_type(String library_type) {
-    this.library_type = library_type;
-  }
-
-  //  public Key getKey() {
-  //    return key;
-  //  }
-  //
-  //  public void setKey(Key key) {
-  //    this.key = key;
-  //  }
-
-  //public String getKey() {
-  //  return key;
-  //}
-
-  //public void setKey(String key) {
-  //  this.key = key;
-  //}
-
-  //  @PostConstruct
-  //  private void init() {
-  //
-  //    logger.debug("Agent baseurl is: " + baseUrl);
-  //  }
-
-  //  public static class Key {
-  //    private File file;
-  //
-  //    public File getFile() {
-  //      return file;
-  //    }
-  //
-  //    public void setFile(File file) {
-  //      this.file = file;
-  //    }
-  //
-  //    @Override
-  //    public String toString() {
-  //      return "Key{" + "file=" + file + '}';
-  //    }
-  //  }
-  //
-  //  public static class File {
-  //    private String path;
-  //
-  //    public String getPath() {
-  //      return path;
-  //    }
-  //
-  //    public void setPath(String path) {
-  //      this.path = path;
-  //    }
-  //
-  //    @Override
-  //    public String toString() {
-  //      return "File{" + "path='" + path + '\'' + '}';
-  //    }
-  //  }
+  //  private String baseUrl;
+  //  private String driver;
+  // private String library_type;
+  // private String key;
 
   public Service getService() {
     return service;
@@ -130,6 +51,30 @@ public class NseProperties {
 
   public void setService(Service service) {
     this.service = service;
+  }
+
+  public String getUser() {
+    return user;
+  }
+
+  public void setUser(String user) {
+    this.user = user;
+  }
+
+  public String getPassword() {
+    return password;
+  }
+
+  public void setPassword(String password) {
+    this.password = password;
+  }
+
+  public boolean getZabbix() {
+    return zabbix;
+  }
+
+  public void setZabbix(boolean zabbix) {
+    this.zabbix = zabbix;
   }
 
   public static class Service {

@@ -16,69 +16,64 @@
  *
  */
 
-package org.openbaton.nse.beans.adapters.openstack;
+package org.openbaton.nse.adapters.openstack;
 
-//import com.google.common.base.Function;
-//import com.google.common.collect.ImmutableSet;
-//import com.google.inject.Key;
-//import com.google.inject.Module;
-//import com.google.inject.TypeLiteral;
-/*
-import org.jclouds.ContextBuilder;
-import org.jclouds.compute.ComputeServiceContext;
-import org.jclouds.domain.Credentials;
-import org.jclouds.logging.slf4j.config.SLF4JLoggingModule;
-import org.jclouds.openstack.keystone.v2_0.domain.Access;
-import org.jclouds.openstack.neutron.v2.NeutronApi;
-import org.jclouds.openstack.neutron.v2.domain.Port;
-import org.jclouds.openstack.neutron.v2.domain.Ports;
-import org.jclouds.openstack.neutron.v2.features.PortApi;
-import org.jclouds.openstack.nova.v2_0.NovaApi;
-import org.jclouds.openstack.v2_0.options.PaginationOptions;
-*/
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.openbaton.catalogue.mano.common.ConnectionPoint;
 import org.openbaton.catalogue.mano.common.Ip;
 import org.openbaton.catalogue.mano.descriptor.InternalVirtualLink;
-import org.openbaton.catalogue.mano.descriptor.VNFDConnectionPoint;
 import org.openbaton.catalogue.mano.descriptor.VirtualDeploymentUnit;
 import org.openbaton.catalogue.mano.record.VNFCInstance;
 import org.openbaton.catalogue.mano.record.VirtualNetworkFunctionRecord;
-import org.openbaton.catalogue.nfvo.VimInstance;
+import org.openbaton.catalogue.nfvo.viminstances.BaseVimInstance;
+import org.openbaton.nse.utils.*;
 import org.openbaton.nse.utils.DetailedQoSReference;
 import org.openbaton.nse.utils.QoSReference;
-import org.openbaton.nse.utils.Quality;
-import org.openstack4j.api.OSClient;
+import org.openbaton.nse.utils.openstack.OpenStackBandwidthRule;
+import org.openbaton.nse.utils.openstack.OpenStackNetwork;
+import org.openbaton.nse.utils.openstack.OpenStackPort;
+import org.openbaton.nse.utils.openstack.OpenStackQoSPolicy;
+import org.openstack4j.model.network.Port;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
 
 /**
  * Created by lgr on 20/09/16. modified by lgr on 20.07.17
  */
+@Service
+//public class NeutronQoSExecutor implements Runnable, Callable {
 public class NeutronQoSExecutor implements Runnable {
 
-  private Logger logger;
+  @SuppressWarnings("unused")
+  public NeutronQoSExecutor() {}
+
+  private Logger logger = LoggerFactory.getLogger(NeutronQoSExecutor.class);
+
   private Set<VirtualNetworkFunctionRecord> vnfrs;
   private NeutronQoSHandler neutron_handler;
-  private VimInstance v;
+  private BaseVimInstance v;
   private String token;
   private Map<String, String> creds;
-  private List<org.openstack4j.model.network.Port> portList;
+  private List<? extends Port> portList;
   private Map<String, String> computeNodeMap;
   private Map<String, String> hostComputeNodeMap;
-  private String delimiter_line;
 
   public NeutronQoSExecutor(
       Set<VirtualNetworkFunctionRecord> vnfrs,
       NeutronQoSHandler handler,
       String token,
-      VimInstance v,
+      BaseVimInstance v,
       Map<String, String> creds,
-      List<org.openstack4j.model.network.Port> portList,
+      List<? extends Port> portList,
       Map<String, String> computeNodeMap,
       Map<String, String> hostComputeNodeMap) {
     this.vnfrs = vnfrs;
@@ -92,12 +87,17 @@ public class NeutronQoSExecutor implements Runnable {
     this.hostComputeNodeMap = hostComputeNodeMap;
   }
 
-  private void init() {
-    this.logger = LoggerFactory.getLogger(this.getClass());
+  public NeutronQoSExecutor(
+      NeutronQoSHandler handler, String token, BaseVimInstance v, Map<String, String> creds) {
+    this.neutron_handler = handler;
+    this.token = token;
+    this.v = v;
+    this.creds = creds;
   }
 
   @Override
   public void run() {
+    String delimiter_line;
     List<DetailedQoSReference> qoses = this.getDetailedQosesRefs(vnfrs);
     String heading = "  # Will work on VIM with name : " + v.getName() + " and id : " + v.getId();
     delimiter_line = "  #";
@@ -110,11 +110,11 @@ public class NeutronQoSExecutor implements Runnable {
     logger.debug(delimiter_line);
     for (VirtualNetworkFunctionRecord vnfr : vnfrs) {
       for (DetailedQoSReference r : qoses) {
-        if (vnfr.getName().equals(r.getVnfr_name())) {
+        if (vnfr.getName().equals(r.getHostname())) {
           try {
             logger.debug(
-                "    #"
-                    + r.getVnfr_name()
+                "    # "
+                    + r.getHostname()
                     + " -> "
                     + r.getIp()
                     + " -> "
@@ -132,9 +132,9 @@ public class NeutronQoSExecutor implements Runnable {
           }
         }
       }
-      logger.debug("    " + delimiter_line);
+      logger.debug("  " + delimiter_line);
       for (DetailedQoSReference r : qoses) {
-        if (vnfr.getName().equals(r.getVnfr_name())) {
+        if (vnfr.getName().equals(r.getHostname())) {
           logger.debug("    Setting " + r.getIp() + " bandwidth quality to " + r.getQuality());
           Map<String, String> qos_map = getNeutronQoSPolicies(neutron_handler, creds, token);
           if (qos_map == null) {
@@ -193,6 +193,36 @@ public class NeutronQoSExecutor implements Runnable {
           }
         }
       }
+      logger.debug(delimiter_line);
+    }
+  }
+
+  public void deleteBandwidthRule(String rule_id, String policy_id) {
+    String response =
+        neutron_handler.neutron_http_connection(
+            creds.get("neutron")
+                + "/qos/policies/"
+                + policy_id
+                + "/bandwidth_limit_rules/"
+                + rule_id,
+            "DELETE",
+            token,
+            null);
+    if (response == null) {
+      logger.error(
+          "Error trying to delete bandwidth rule :"
+              + rule_id
+              + " belonging to QoS policy "
+              + policy_id);
+    }
+  }
+
+  public void deleteQoSPolicy(String id) {
+    String response =
+        neutron_handler.neutron_http_connection(
+            creds.get("neutron") + "/qos/policies/" + id, "DELETE", token, null);
+    if (response == null) {
+      logger.error("Error trying to delete QoS policy :" + id + " are there still VMs using it?");
     }
   }
 
@@ -259,7 +289,7 @@ public class NeutronQoSExecutor implements Runnable {
               + ref.getQuality().name()
               + " is the same as defined in Openstack Neutron");
     } else {
-      // TODO : Add a configuration parameter telling us what to do , ignore the difference or update bandwidth rule
+      // TODO : Add a openbaton parameter telling us what to do , ignore the difference or update bandwidth rule
       logger.warn(
           "        The QoS policy "
               + ref.getQuality().name()
@@ -267,6 +297,118 @@ public class NeutronQoSExecutor implements Runnable {
               + creds.get("auth")
               + " has been modified in OpenStack Neutron, remove the QoS policy in OpenStack Neutron to get rid of this warning");
     }
+  }
+
+  public void createBandwidthRule(OpenStackBandwidthRule rule, String id) {
+    String response =
+        neutron_handler.neutron_http_connection(
+            creds.get("neutron") + "/qos/policies/" + id + "/bandwidth_limit_rules",
+            "POST",
+            token,
+            neutron_handler.createBandwidthLimitRulePayload(
+                rule.getType(),
+                rule.getMax_kbps().toString(),
+                rule.getMax_burst_kbps().toString()));
+    if (response == null) {
+      logger.error("Error trying to create bandwidth rule for QoS policy");
+      return;
+    }
+    logger.debug("    Created bandwidth limitation rule for new QoS policy : " + id);
+  }
+
+  public void createQoSPolicy(OpenStackQoSPolicy policy) {
+    String response =
+        neutron_handler.neutron_http_connection(
+            creds.get("neutron") + "/qos/policies",
+            "POST",
+            token,
+            neutron_handler.createPolicyPayload(policy.getName()));
+    if (response == null) {
+      logger.error("Error trying to create QoS policy :" + policy.getName());
+    }
+    String policy_id = neutron_handler.parsePolicyId(response);
+    policy.setId(policy_id);
+    for (OpenStackBandwidthRule rule : policy.getRules()) {
+      response =
+          neutron_handler.neutron_http_connection(
+              creds.get("neutron") + "/qos/policies/" + policy_id + "/bandwidth_limit_rules",
+              "POST",
+              token,
+              neutron_handler.createBandwidthLimitRulePayload(
+                  rule.getType(),
+                  rule.getMax_kbps().toString(),
+                  rule.getMax_burst_kbps().toString()));
+      if (response == null) {
+        logger.error("Error trying to create bandwidth rule for QoS policy");
+        return;
+      }
+    }
+  }
+
+  public ArrayList<OpenStackPort> listPorts() {
+    ArrayList<OpenStackPort> port_list = new ArrayList<>();
+    String response =
+        neutron_handler.neutron_http_connection(
+            creds.get("neutron") + "/ports", "GET", token, null);
+    JSONObject ans = new JSONObject(response);
+    JSONArray net = ans.getJSONArray("ports");
+    for (int i = 0; i < net.length(); i++) {
+      JSONObject o = net.getJSONObject(i);
+      OpenStackPort tmp_port = new OpenStackPort(o);
+      port_list.add(tmp_port);
+    }
+    return port_list;
+  }
+
+  public ArrayList<OpenStackNetwork> listNetworks() {
+    ArrayList<OpenStackNetwork> net_list = new ArrayList<>();
+    String response =
+        neutron_handler.neutron_http_connection(
+            creds.get("neutron") + "/networks", "GET", token, null);
+    JSONObject ans = new JSONObject(response);
+    JSONArray net = ans.getJSONArray("networks");
+    for (int i = 0; i < net.length(); i++) {
+      JSONObject o = net.getJSONObject(i);
+      OpenStackNetwork tmp_net = new OpenStackNetwork(o);
+      net_list.add(tmp_net);
+    }
+    return net_list;
+  }
+
+  public ArrayList<OpenStackQoSPolicy> getNeutronQosRules() {
+    ArrayList<OpenStackQoSPolicy> policy_list = new ArrayList<>();
+    String response =
+        neutron_handler.neutron_http_connection(
+            creds.get("neutron") + "/qos/policies", "GET", token, null);
+    if (response == null) {
+      logger.warn("    Can not list existing QoS policies for OpenStack Neutron");
+      return null;
+    }
+    // Save the already configured policies in a hash map for later usage
+    JSONObject ans = new JSONObject(response);
+    JSONArray qos_p = ans.getJSONArray("policies");
+    for (int i = 0; i < qos_p.length(); i++) {
+      JSONObject o = qos_p.getJSONObject(i);
+      OpenStackQoSPolicy tmp_policy = new OpenStackQoSPolicy(o);
+      policy_list.add(tmp_policy);
+    }
+    return policy_list;
+  }
+
+  public void assignQoSPolicyToNetwork(String net, String policy) {
+    neutron_handler.neutron_http_connection(
+        creds.get("neutron") + "/networks/" + net + ".json",
+        "PUT",
+        token,
+        neutron_handler.createPolicyUpdatePayload(policy));
+  }
+
+  public void assignQoSPolicyToPort(String port, String policy) {
+    neutron_handler.neutron_http_connection(
+        creds.get("neutron") + "/ports/" + port + ".json",
+        "PUT",
+        token,
+        neutron_handler.createPolicyUpdatePayload(policy));
   }
 
   // method to list all QoS policies configured in neutron
@@ -300,12 +442,11 @@ public class NeutronQoSExecutor implements Runnable {
     if (!neutron_handler.checkPortQoSPolicy(response, qos_map.get(ref.getQuality().name()))) {
       //logger.debug("Neutron port information before updating : " + response);
       // update port
-      response =
-          neutron_handler.neutron_http_connection(
-              creds.get("neutron") + "/ports/" + np.getId() + ".json",
-              "PUT",
-              access,
-              neutron_handler.createPolicyUpdatePayload(qos_map.get(ref.getQuality().name())));
+      neutron_handler.neutron_http_connection(
+          creds.get("neutron") + "/ports/" + np.getId() + ".json",
+          "PUT",
+          access,
+          neutron_handler.createPolicyUpdatePayload(qos_map.get(ref.getQuality().name())));
       logger.info(
           "        Finished assigning QoS policy "
               + ref.getQuality().name()
@@ -324,14 +465,6 @@ public class NeutronQoSExecutor implements Runnable {
               + " assigned");
     }
     //logger.debug(delimiter_line);
-  }
-
-  // Simple method to check if a set of connection points contain configured bandwidth qualities
-  private boolean hasQoS(Map<String, Quality> qualities, Set<VNFDConnectionPoint> ifaces) {
-    for (VNFDConnectionPoint cp : ifaces) {
-      if (qualities.keySet().contains(cp.getVirtual_link_reference())) return true;
-    }
-    return false;
   }
 
   // Method reform a set of virtual network functions to a map containing the name of the record and its quality
@@ -394,50 +527,46 @@ public class NeutronQoSExecutor implements Runnable {
             //    + vdu.getName()
             //    + " of "
             //    + vnfr.getName());
-            for (VNFDConnectionPoint cp : vnfci.getConnection_point()) {
+            //logger.debug(
+            //    "Checking connection point "
+            //        + cp.getVirtual_link_reference()
+            //        + " of virtual network function component "
+            //        + vnfci.getHostname()
+            //        + " of virtual deployment unit "
+            //        + vdu.getName()
+            //        + " of "
+            //        + vnfr.getName());
+            //logger.debug("Creating new QoSReference");
+            // We modified the check here to go over the vnfr name
+            Map<String, Quality> netQualities = this.getNetQualityMap(vnfrs, vnfr.getName());
+            //logger.debug("    Map qualities : " + netQualities);
+            //logger.debug("Following QoS policies are to applied " + netQualities.toString());
+            for (Ip ip : vnfci.getIps()) {
               //logger.debug(
-              //    "Checking connection point "
-              //        + cp.getVirtual_link_reference()
-              //        + " of virtual network function component "
-              //        + vnfci.getHostname()
-              //        + " of virtual deployment unit "
-              //        + vdu.getName()
-              //        + " of "
-              //        + vnfr.getName());
-              //logger.debug("Creating new QoSReference");
-              // We modified the check here to go over the vnfr name
-              Map<String, Quality> netQualities = this.getNetQualityMap(vnfrs, vnfr.getName());
-              //logger.debug("    Map qualities : " + netQualities);
-
-              //logger.debug("Following QoS policies are to applied " + netQualities.toString());
-              for (Ip ip : vnfci.getIps()) {
-                //logger.debug(
-                //    "Checking "
-                //        + vnfci.getHostname()
-                //        + " - "
-                //        + ip.getNetName()
-                //        + " - "
-                //        + ip.getIp());
-                String net = ip.getNetName();
-                if (netQualities.keySet().contains(net)) {
-                  // Avoid duplicate entries
-                  dup = false;
-                  for (DetailedQoSReference t : res) {
-                    if (t.getIp().equals(ip.getIp())) {
-                      dup = true;
-                    }
+              //    "Checking " + vnfci.getHostname() + " - " + ip.getNetName() + " - " + ip.getIp());
+              String net = ip.getNetName();
+              if (netQualities.keySet().contains(net)) {
+                // Avoid duplicate entries
+                dup = false;
+                for (DetailedQoSReference t : res) {
+                  if (t.getIp().equals(ip.getIp())) {
+                    dup = true;
                   }
-                  if (!dup) {
-                    DetailedQoSReference ref = new DetailedQoSReference();
-                    //ref.setQuality(qualities.get(vnfr.getName()));
-                    if (netQualities.get(net) != null) {
-                      ref.setQuality(netQualities.get(net));
-                      ref.setVim_id(vnfci.getVim_id());
-                      ref.setIp(ip.getIp());
-                      ref.setVnfr_name(vnfr.getName());
-                      //logger.debug("    Adding " + ref.toString());
-                      res.add(ref);
-                    }
+                }
+                if (!dup) {
+                  DetailedQoSReference ref = new DetailedQoSReference();
+                  //ref.setQuality(qualities.get(vnfr.getName()));
+                  if (netQualities.get(net) != null) {
+                    ref.setQuality(netQualities.get(net));
+                    ref.setVim_id(vnfci.getVim_id());
+                    ref.setIp(ip.getIp());
+                    ref.setHostname(vnfr.getName());
+                    ref.setVnfr_id(vnfr.getId());
+                    ref.setVdu_id(vdu.getId());
+                    ref.setVnfci_id(vnfci.getId());
+                    ref.setNsr_id(vnfr.getParent_ns_id());
+                    //logger.debug("    Adding " + ref.toString());
+                    res.add(ref);
                   }
                 }
               }
@@ -482,4 +611,9 @@ public class NeutronQoSExecutor implements Runnable {
     }
     return res;
   }
+
+  //@Override
+  //public Object call() throws Exception {
+  //  return null;
+  //}
 }
