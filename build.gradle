@@ -53,9 +53,9 @@ apply from: 'gradle/gradle/command.line.helper.gradle'
 
 project.ext {
 
-    sdkVersion='6.0.0'
-    exceptionVersion='6.0.0'
-    monitoringVersion='6.0.0'
+    sdkVersion='6.0.1-SNAPSHOT'
+    exceptionVersion='6.0.1-SNAPSHOT'
+    monitoringVersion='6.0.1-SNAPSHOT'
 
     /**
      * Application Related Version
