@@ -28,11 +28,12 @@ public class OpenStackTools {
 
   // Function to get the correct OSClient to communicate directly to openstack, it depends on the vim
   // if you get a v3 or v2 type
-  public OSClient getOSClient(String tenant, String user, String pw, String loc, String url) {
+  public OSClient getOSClient(
+      String tenant, String user, String pw, String loc, String url, String domainName) {
     OSClient os = null;
     try {
       if (isV3API(url)) {
-        Identifier domain = Identifier.byName("Default");
+        Identifier domain = Identifier.byName(domainName);
         Identifier project = Identifier.byId(tenant);
         os =
             OSFactory.builderV3()
@@ -50,7 +51,7 @@ public class OpenStackTools {
               ((OSClient.OSClientV3) os).useRegion(loc);
             }
           } catch (Exception ignored) {
-            logger.warn("    Not found region '" + loc + "'. Use default one...");
+            logger.warn("Not found region '" + loc + "'. Use default one...");
             return os;
           }
         }
@@ -79,8 +80,16 @@ public class OpenStackTools {
   }
 
   public OSClient getOSClient(OpenstackVimInstance v) {
+    String domainName =
+        v.getDomain() == null || v.getDomain().equals("") ? "Default" : v.getDomain();
+
     return this.getOSClient(
-        v.getTenant(), v.getUsername(), v.getPassword(), v.getLocation().getName(), v.getAuthUrl());
+        v.getTenant(),
+        v.getUsername(),
+        v.getPassword(),
+        v.getLocation().getName(),
+        v.getAuthUrl(),
+        domainName);
   }
 
   // Check for nova api v2 or nova api v3, necessary to be able to know which OSClient to use if you choose
