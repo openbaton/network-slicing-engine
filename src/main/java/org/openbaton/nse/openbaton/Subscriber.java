@@ -205,12 +205,16 @@ public class Subscriber implements CommandLineRunner {
     //logger.debug("ACTION: " + action + " PAYLOAD " + nsr.toString());
     // Neutron handles removing ports with the allocated QoS itself
     ArrayList<String> vims_to_be_updated = new ArrayList<>();
-    if (nsr != null) {
+    if (nsr != null && nsr.getVnfr() != null) {
       for (VirtualNetworkFunctionRecord vnfr : nsr.getVnfr()) {
-        for (VirtualDeploymentUnit vdu : vnfr.getVdu()) {
-          for (VNFCInstance vnfci : vdu.getVnfc_instance()) {
-            if (!vims_to_be_updated.contains(vnfci.getVim_id())) {
-              vims_to_be_updated.add(vnfci.getVim_id());
+        if (vnfr.getVdu() != null) {
+          for (VirtualDeploymentUnit vdu : vnfr.getVdu()) {
+            if (vdu.getVnfc_instance() != null) {
+              for (VNFCInstance vnfci : vdu.getVnfc_instance()) {
+                if (vnfci.getVim_id() != null && !vims_to_be_updated.contains(vnfci.getVim_id())) {
+                  vims_to_be_updated.add(vnfci.getVim_id());
+                }
+              }
             }
           }
         }
