@@ -20,7 +20,6 @@ package org.openbaton.nse.adapters.openstack;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.openbaton.catalogue.mano.common.ConnectionPoint;
 import org.openbaton.catalogue.mano.common.Ip;
 import org.openbaton.catalogue.mano.descriptor.InternalVirtualLink;
 import org.openbaton.catalogue.mano.descriptor.VirtualDeploymentUnit;
@@ -44,7 +43,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Callable;
 
 /**
  * Created by lgr on 20/09/16. modified by lgr on 20.07.17
@@ -174,7 +172,8 @@ public class NeutronQoSExecutor implements Runnable {
                 String created_pol_id = this.createQoSPolicy(creds, neutron_handler, r, token);
                 // Since we now have the correct id of the policy , lets create the bandwidth rule
                 //createBandwidthRule(creds, created_pol_id, neutron_handler, bandwidth, token);
-                createBandwidthRule(creds, created_pol_id, neutron_handler, bandwidth, r.getQuality().getType(), r.getQuality().getBurst(), token);
+                // The type usually is : bandwidth_limit_rule
+                createBandwidthRule(creds, created_pol_id, neutron_handler, bandwidth, r.getQuality().getType(), r.getQuality().getBurst(),r.getQuality().getDirection(), token);
               } else {
                 // At least print a warning here if the policy bandwidth rule differs from the one we wanted to create,
                 // this means a user touched it already
@@ -247,7 +246,7 @@ public class NeutronQoSExecutor implements Runnable {
     return neutron_handler.parsePolicyId(response);
   }
 
-  // method to create a non existing QoS policy in Openstack using default settings as egress type and 0 burst
+  // method to create a non existing Bandwidth Rule in Openstack using default settings as egress type and 0 burst
   private void createBandwidthRule(
       Map<String, String> creds,
       String created_pol_id,
@@ -267,7 +266,7 @@ public class NeutronQoSExecutor implements Runnable {
     logger.debug("    Created bandwidth limitation rule for new QoS policy : " + created_pol_id);
   }
 
-  // method to create a non existing QoS policy in Openstack
+  // method to create a non existing Bandwidth Rule in Openstack
   private void createBandwidthRule(
           Map<String, String> creds,
           String created_pol_id,
@@ -275,13 +274,14 @@ public class NeutronQoSExecutor implements Runnable {
           String bandwidth,
           String type,
           String burst,
+          String direction,
           Object access) {
     String response =
             neutron_handler.neutron_http_connection(
                     creds.get("neutron") + "/qos/policies/" + created_pol_id + "/bandwidth_limit_rules",
                     "POST",
                     access,
-                    neutron_handler.createBandwidthLimitRulePayload(type,bandwidth,burst));
+                    neutron_handler.createBandwidthLimitRulePayload(type,bandwidth,burst,direction));
     if (response == null) {
       logger.error("Error trying to create bandwidth rule for QoS policy");
       return;
@@ -331,7 +331,9 @@ public class NeutronQoSExecutor implements Runnable {
             neutron_handler.createBandwidthLimitRulePayload(
                 rule.getType(),
                 rule.getMax_kbps().toString(),
-                rule.getMax_burst_kbps().toString()));
+                rule.getMax_burst_kbps().toString(),
+                rule.getDirection()));;
+
     if (response == null) {
       logger.error("Error trying to create bandwidth rule for QoS policy");
       return;
@@ -358,9 +360,10 @@ public class NeutronQoSExecutor implements Runnable {
               "POST",
               token,
               neutron_handler.createBandwidthLimitRulePayload(
-                  rule.getType(),
-                  rule.getMax_kbps().toString(),
-                  rule.getMax_burst_kbps().toString()));
+                      rule.getType(),
+                      rule.getMax_kbps().toString(),
+                      rule.getMax_burst_kbps().toString(),
+                      rule.getDirection()));;
       if (response == null) {
         logger.error("Error trying to create bandwidth rule for QoS policy");
         return;

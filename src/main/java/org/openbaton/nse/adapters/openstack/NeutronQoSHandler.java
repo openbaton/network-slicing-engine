@@ -272,6 +272,23 @@ public class NeutronQoSHandler {
     return tmp;
   }
 
+  public JSONObject createBandwidthLimitRulePayload(String type, String max_rate, String burst, String direction) {
+    // TODO : catch null objects
+    JSONObject tmp =
+            new JSONObject(
+                    "{\""
+                            + type
+                            + "\":{\"max_kbps\":\""
+                            + max_rate
+                            + "\",\"max_burst_kbps\":\""
+                            + burst
+                            + "\":{\"direction\":\""
+                            + direction
+                            + "\"}}");
+    //logger.debug("Created bandwidth_limit_rule payload : " + tmp.toString());
+    return tmp;
+  }
+
   public String parsePolicyId(String response) {
     // TODO : catch null objects
     JSONObject pol = new JSONObject(response);

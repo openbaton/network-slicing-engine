@@ -23,24 +23,26 @@ package org.openbaton.nse.utils;
  */
 public enum Quality {
   // 1126 mb/s burst - 500 mb/s
-  PLATINUM("524288000", "0", "egress"),
+  PLATINUM("524288000", "0", "egress", "bandwidth_limit_rule"),
   // 110 mb/s burst - 200 mb/s
-  GOLD("209715200", "0", "egress"),
+  GOLD("209715200", "0", "egress", "bandwidth_limit_rule"),
   // 11 mb/s burst - 100 mb/s
-  SILVER("104857600", "0", "egress"),
+  SILVER("104857600", "0", "egress", "bandwidth_limit_rule"),
   // 1.1 mb/s burst - 50 mb/s
-  BRONZE("52428800", "0", "egress"),
+  BRONZE("52428800", "0", "egress", "bandwidth_limit_rule"),
   // 0.2 mb/s burst - 5 mb/s
-  COAL("5242880", "0", "egress");
+  COAL("5242880", "0", "egress", "bandwidth_limit_rule");
 
   private String max_rate;
   private String burst;
   // egress / ingress
+  private String direction;
   private String type;
 
-  Quality(String max_rate, String burst, String type) {
+  Quality(String max_rate, String burst, String direction, String type) {
     this.max_rate = max_rate;
     this.burst = burst;
+    this.direction = direction;
     this.type = type;
   }
 
@@ -58,7 +60,12 @@ public enum Quality {
 
   public void setBurst(String min_rate) { this.burst = min_rate; }
 
+  public String getDirection() { return direction; }
+
+  public void setDirection(String direction) { this.direction = direction; }
+
   public String getType() { return type; }
 
   public void setType(String type) { this.type = type; }
+
 }
