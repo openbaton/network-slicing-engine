@@ -167,7 +167,8 @@ public class Subscriber implements CommandLineRunner {
           if (!vlr.getQos().isEmpty()) {
             for (String qosAttr : vlr.getQos()) {
               //logger.debug("    found : " + qosAttr);
-              if (qosAttr.contains("maximum_bandwidth")) {
+              //if (qosAttr.contains("maximum_bandwidth")) {
+              if (qosAttr.contains("bandwidth")) {
                 //logger.debug(nsr.getVnfr().toString());
                 core.addQos(nsr.getVnfr(), nsr.getId());
               }
@@ -259,7 +260,8 @@ public class Subscriber implements CommandLineRunner {
       for (InternalVirtualLink vlr : vnfr.getVirtual_link()) {
         if (!vlr.getQos().isEmpty()) {
           for (String qosAttr : vlr.getQos()) {
-            if (qosAttr.contains("maximum_bandwidth")) {
+            //if (qosAttr.contains("maximum_bandwidth")) {
+            if (qosAttr.contains("bandwidth")) {
               core.addQos(new HashSet<>(Arrays.asList(vnfr)), vnfr.getParent_ns_id());
             }
           }
