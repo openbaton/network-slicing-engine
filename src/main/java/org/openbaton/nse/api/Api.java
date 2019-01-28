@@ -17,15 +17,11 @@ import org.openbaton.nse.adapters.openstack.NeutronQoSHandler;
 import org.openbaton.nse.monitoring.ZabbixChecker;
 import org.openbaton.nse.monitoring.ZabbixPluginCaller;
 import org.openbaton.nse.utils.api.NetworkStatistic;
-import org.openbaton.nse.utils.openstack.OpenStackTools;
+import org.openbaton.nse.utils.openstack.*;
 import org.openbaton.nse.utils.openbaton.OpenBatonTools;
 import org.openbaton.nse.properties.NfvoProperties;
 import org.openbaton.nse.properties.NseProperties;
 import org.openbaton.nse.utils.api.NetworkOverview;
-import org.openbaton.nse.utils.openstack.OpenStackBandwidthRule;
-import org.openbaton.nse.utils.openstack.OpenStackNetwork;
-import org.openbaton.nse.utils.openstack.OpenStackPort;
-import org.openbaton.nse.utils.openstack.OpenStackQoSPolicy;
 import org.openbaton.sdk.NFVORequestor;
 import org.openbaton.sdk.NfvoRequestorBuilder;
 import org.openbaton.sdk.api.exception.SDKException;
@@ -296,6 +292,60 @@ public class Api {
             NeutronQoSExecutor neutron_executor =
                 new NeutronQoSExecutor(neutron_handler, token, v, creds);
             neutron_executor.deleteBandwidthRule(rule_id, policy_id);
+          } else {
+            logger.warn("VIM type " + v.getType() + " not supported yet");
+          }
+        }
+      }
+      this.notifyChange(vim);
+    }
+  }
+
+  // Method to be called by the NSE-GUI to create QoS policies
+  @CrossOrigin(origins = "*")
+  @RequestMapping("/minimum-bandwidth-rule-create")
+  @SuppressWarnings("unused")
+  public void createMinimumBandwidthRule(
+          @RequestParam(value = "project", defaultValue = "project_id") String project,
+          @RequestParam(value = "id", defaultValue = "policy_id") String id,
+          @RequestParam(value = "type", defaultValue = "minimum_bandwidth_rule") String type,
+          @RequestParam(value = "kbps", defaultValue = "0") String kbps,
+          @RequestParam(value = "direction", defaultValue = "egress") String direction,
+          @RequestParam(value = "vim", defaultValue = "vim_id") String vim) {
+    if (!kbps.matches("[0-9]+")) {
+      logger.error(
+              "Cannot create bandwidth rule with max_kbps : \""
+                      + kbps
+                      + "\" please enter a valid number");
+      return;
+    }
+    logger.debug(
+            "Received create minimum bandwidth rule request for vim : " + vim + " in project " + project);
+    logger.debug(
+            "Policy id : " + id + " type : " + type + " min_kbps : " + kbps);
+    OpenStackMinimumBandwidthRule rule = new OpenStackMinimumBandwidthRule();
+    rule.setType(type);
+    rule.setMin_kbps(new Integer(kbps));
+    rule.setDirection(direction);
+    synchronized (vim_list) {
+      for (BaseVimInstance v : vim_list) {
+        if (v.getId().equals(vim)) {
+          if (OpenstackVimInstance.class.isInstance(v)) {
+            OpenstackVimInstance osV = (OpenstackVimInstance) v;
+            NFVORequestor nfvoRequestor =
+                    obTools.getNFVORequestor(
+                            nfvo_configuration.getIp(),
+                            nfvo_configuration.getPort(),
+                            project,
+                            nse_configuration.getService().getKey());
+            OSClient tmp_os = osTools.getOSClient(osV);
+            String token = osTools.getAuthToken(tmp_os, osV);
+            String neutron_access = osTools.getNeutronEndpoint(osV);
+            Map<String, String> creds = obTools.getDatacenterCredentials(nfvoRequestor, v.getId());
+            creds.put("neutron", neutron_access);
+            NeutronQoSExecutor neutron_executor =
+                    new NeutronQoSExecutor(neutron_handler, token, v, creds);
+            neutron_executor.createBandwidthRule(rule, id);
           } else {
             logger.warn("VIM type " + v.getType() + " not supported yet");
           }

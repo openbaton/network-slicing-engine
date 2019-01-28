@@ -22,36 +22,71 @@ package org.openbaton.nse.utils;
  * Created by maa on 11.11.15.
  */
 public enum Quality {
-  // 1126 mb/s burst - 500 mb/s
+  //#############################################################
+  // ~ 500 mb/s - Maximum Bandwidth for outgoing traffic
   PLATINUM("524288000", "0", "egress", "bandwidth_limit_rule"),
-  // 110 mb/s burst - 200 mb/s
+  // ~ 200 mb/s - Maximum Bandwidth for outgoing traffic
   GOLD("209715200", "0", "egress", "bandwidth_limit_rule"),
-  // 11 mb/s burst - 100 mb/s
+  // ~ 100 mb/s - Maximum Bandwidth for outgoing traffic
   SILVER("104857600", "0", "egress", "bandwidth_limit_rule"),
-  // 1.1 mb/s burst - 50 mb/s
+  // ~ 50 mb/s - Maximum Bandwidth for outgoing traffic
   BRONZE("52428800", "0", "egress", "bandwidth_limit_rule"),
-  // 0.2 mb/s burst - 5 mb/s
-  COAL("5242880", "0", "egress", "bandwidth_limit_rule");
+  // ~ 5 mb/s - Maximum Bandwidth for outgoing traffic
+  COAL("5242880", "0", "egress", "bandwidth_limit_rule"),
+  //#############################################################
+  // ~ 500 mb/s - Maximum Bandwidth for incoming traffic
+  INGRESS_PLATINUM("524288000", "0", "ingress", "bandwidth_limit_rule"),
+  // ~ 200 mb/s - Maximum Bandwidth for incoming traffic
+  INGRESS_GOLD("209715200", "0", "ingress", "bandwidth_limit_rule"),
+  // ~ 100 mb/s - Maximum Bandwidth for incoming traffic
+  INGRESS_SILVER("104857600", "0", "ingress", "bandwidth_limit_rule"),
+  // ~ 50 mb/s - Maximum Bandwidth for incoming traffic
+  INGRESS_BRONZE("52428800", "0", "ingress", "bandwidth_limit_rule"),
+  // ~ 5 mb/s - Maximum Bandwidth for incoming traffic
+  INGRESS_COAL("5242880", "0", "ingress", "bandwidth_limit_rule"),
+  //#############################################################
+  // ~ 500 mb/s - Minimum Bandwidth for outgoing traffic
+  MINIMUM_PLATINUM("524288000", "0", "egress", "minimum_bandwidth_rule"),
+  // ~ 200 mb/s - Minimum Bandwidth for outgoing traffic
+  MINIMUM_GOLD("209715200", "0", "egress", "minimum_bandwidth_rule"),
+  // ~ 100 mb/s - Minimum Bandwidth for outgoing traffic
+  MINIMUM_SILVER("104857600", "0", "egress", "minimum_bandwidth_rule"),
+  // ~ 50 mb/s - Minimum Bandwidth for outgoing traffic
+  MINIMUM_BRONZE("52428800", "0", "egress", "minimum_bandwidth_rule"),
+  // ~ 5 mb/s - Minimum Bandwidth for outgoing traffic
+  MINIMUM_COAL("5242880", "0", "egress", "minimum_bandwidth_rule"),
+  //#############################################################
+  // ~ 500 mb/s - Minimum Bandwidth for incoming traffic
+  MINIMUM_INGRESS_PLATINUM("524288000", "0", "ingress", "minimum_bandwidth_rule"),
+  // ~ 200 mb/s - Minimum Bandwidth for incoming traffic
+  MINIMUM_INGRESS_GOLD("209715200", "0", "ingress", "minimum_bandwidth_rule"),
+  // ~ 100 mb/s - Minimum Bandwidth for incoming traffic
+  MINIMUM_INGRESS_SILVER("104857600", "0", "ingress", "minimum_bandwidth_rule"),
+  // ~ 50 mb/s - Minimum Bandwidth for incoming traffic
+  MINIMUM_INGRESS_BRONZE("52428800", "0", "ingress", "minimum_bandwidth_rule"),
+  // ~ 5 mb/s - Minimum Bandwidth for incoming traffic
+  MINIMUM_INGRESS_COAL("5242880", "0", "ingress", "minimum_bandwidth_rule");
+  //#############################################################
 
-  private String max_rate;
+  private String rate;
   private String burst;
   // egress / ingress
   private String direction;
   private String type;
 
-  Quality(String max_rate, String burst, String direction, String type) {
-    this.max_rate = max_rate;
+  Quality(String rate, String burst, String direction, String type) {
+    this.rate = rate;
     this.burst = burst;
     this.direction = direction;
     this.type = type;
   }
 
-  public String getMax_rate() {
-    return max_rate;
+  public String getRate() {
+    return rate;
   }
 
-  public void setMax_rate(String max_rate) {
-    this.max_rate = max_rate;
+  public void setRate(String rate) {
+    this.rate = rate;
   }
 
   public String getBurst() {

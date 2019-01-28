@@ -29,10 +29,7 @@ import org.openbaton.catalogue.nfvo.viminstances.BaseVimInstance;
 import org.openbaton.nse.utils.*;
 import org.openbaton.nse.utils.DetailedQoSReference;
 import org.openbaton.nse.utils.QoSReference;
-import org.openbaton.nse.utils.openstack.OpenStackBandwidthRule;
-import org.openbaton.nse.utils.openstack.OpenStackNetwork;
-import org.openbaton.nse.utils.openstack.OpenStackPort;
-import org.openbaton.nse.utils.openstack.OpenStackQoSPolicy;
+import org.openbaton.nse.utils.openstack.*;
 import org.openstack4j.model.network.Port;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -161,7 +158,7 @@ public class NeutronQoSExecutor implements Runnable {
                       + r.getQuality().name());
               // Natively metering the bandwidth in bytes per second, openstack uses kilo bytes per second
               String bandwidth =
-                  String.valueOf(Integer.parseInt(r.getQuality().getMax_rate()) / 1024);
+                  String.valueOf(Integer.parseInt(r.getQuality().getRate()) / 1024);
               // if the quality is missing, we should CREATE IT
               logger.debug(
                   "    Checking if QoS policy : " + r.getQuality().name() + " exists in OpenStack");
@@ -172,8 +169,15 @@ public class NeutronQoSExecutor implements Runnable {
                 String created_pol_id = this.createQoSPolicy(creds, neutron_handler, r, token);
                 // Since we now have the correct id of the policy , lets create the bandwidth rule
                 //createBandwidthRule(creds, created_pol_id, neutron_handler, bandwidth, token);
-                // The type usually is : bandwidth_limit_rule
-                createBandwidthRule(creds, created_pol_id, neutron_handler, bandwidth, r.getQuality().getType(), r.getQuality().getBurst(),r.getQuality().getDirection(), token);
+
+                // We need to distinguish in the type! bandwidth_limit_rule
+                if (r.getQuality().getType().equals("bandwidth_limit_rule")){
+                  createBandwidthRule(creds, created_pol_id, neutron_handler, bandwidth, r.getQuality().getType(), r.getQuality().getBurst(),r.getQuality().getDirection(), token);
+                } else if (r.getQuality().getType().equals("minimum_bandwidth_rule")){
+
+                } else {
+                  logger.error("Rule type "+r.getQuality().getType()+ " not supported");
+                }
               } else {
                 // At least print a warning here if the policy bandwidth rule differs from the one we wanted to create,
                 // this means a user touched it already
@@ -244,6 +248,48 @@ public class NeutronQoSExecutor implements Runnable {
     }
     logger.debug("    Created missing QoS policy");
     return neutron_handler.parsePolicyId(response);
+  }
+
+  // method to create a non existing Bandwidth Rule in Openstack using default settings as egress type and 0 burst
+  private void createMinimumBandwidthRule(
+          Map<String, String> creds,
+          String created_pol_id,
+          NeutronQoSHandler neutron_handler,
+          String bandwidth,
+          Object access) {
+    String response =
+            neutron_handler.neutron_http_connection(
+                    creds.get("neutron") + "/qos/policies/" + created_pol_id + "/minimum_bandwidth_rules",
+                    "POST",
+                    access,
+                    neutron_handler.createMinimumBandwidthLimitRulePayload(bandwidth));
+    if (response == null) {
+      logger.error("Error trying to create bandwidth rule for QoS policy");
+      return;
+    }
+    logger.debug("    Created bandwidth limitation rule for new QoS policy : " + created_pol_id);
+  }
+
+  // method to create a non existing Bandwidth Rule in Openstack
+  private void createMinimumBandwidthRule(
+          Map<String, String> creds,
+          String created_pol_id,
+          NeutronQoSHandler neutron_handler,
+          String bandwidth,
+          String type,
+          String direction,
+          Object access) {
+    String response =
+            neutron_handler.neutron_http_connection(
+                    creds.get("neutron") + "/qos/policies/" + created_pol_id + "/minimum_bandwidth_rules",
+                    "POST",
+                    access,
+                    neutron_handler.createMinimumBandwidthLimitRulePayload(type,bandwidth,direction));
+    if (response == null) {
+      logger.error("Error trying to create bandwidth rule for QoS policy");
+      return;
+    }
+    logger.debug("    Created bandwidth limitation rule for new QoS policy : " + created_pol_id);
   }
 
   // method to create a non existing Bandwidth Rule in Openstack using default settings as egress type and 0 burst
@@ -320,6 +366,24 @@ public class NeutronQoSExecutor implements Runnable {
               + creds.get("auth")
               + " has been modified in OpenStack Neutron, remove the QoS policy in OpenStack Neutron to get rid of this warning");
     }
+  }
+
+  public void createBandwidthRule(OpenStackMinimumBandwidthRule rule, String id) {
+    String response =
+            neutron_handler.neutron_http_connection(
+                    creds.get("neutron") + "/qos/policies/" + id + "/minimum_bandwidth_rules",
+                    "POST",
+                    token,
+                    neutron_handler.createMinimumBandwidthLimitRulePayload(
+                            rule.getType(),
+                            rule.getMin_kbps().toString(),
+                            rule.getDirection()));;
+
+    if (response == null) {
+      logger.error("Error trying to create bandwidth rule for QoS policy");
+      return;
+    }
+    logger.debug("    Created bandwidth limitation rule for new QoS policy : " + id);
   }
 
   public void createBandwidthRule(OpenStackBandwidthRule rule, String id) {
