@@ -23,22 +23,25 @@ package org.openbaton.nse.utils;
  */
 public enum Quality {
   // 1126 mb/s burst - 500 mb/s
-  PLATINUM("524288000", "0"),
+  PLATINUM("524288000", "0", "egress"),
   // 110 mb/s burst - 200 mb/s
-  GOLD("209715200", "0"),
+  GOLD("209715200", "0", "egress"),
   // 11 mb/s burst - 100 mb/s
-  SILVER("104857600", "0"),
+  SILVER("104857600", "0", "egress"),
   // 1.1 mb/s burst - 50 mb/s
-  BRONZE("52428800", "0"),
+  BRONZE("52428800", "0", "egress"),
   // 0.2 mb/s burst - 5 mb/s
-  COAL("5242880", "0");
+  COAL("5242880", "0", "egress");
 
   private String max_rate;
-  private String min_rate;
+  private String burst;
+  // egress / ingress
+  private String type;
 
-  Quality(String max_rate, String min_rate) {
+  Quality(String max_rate, String burst, String type) {
     this.max_rate = max_rate;
-    this.min_rate = min_rate;
+    this.burst = burst;
+    this.type = type;
   }
 
   public String getMax_rate() {
@@ -49,11 +52,13 @@ public enum Quality {
     this.max_rate = max_rate;
   }
 
-  public String getMin_rate() {
-    return min_rate;
+  public String getBurst() {
+    return burst;
   }
 
-  public void setMin_rate(String min_rate) {
-    this.min_rate = min_rate;
-  }
+  public void setBurst(String min_rate) { this.burst = min_rate; }
+
+  public String getType() { return type; }
+
+  public void setType(String type) { this.type = type; }
 }

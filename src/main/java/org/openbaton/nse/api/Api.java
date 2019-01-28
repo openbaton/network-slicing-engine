@@ -315,6 +315,7 @@ public class Api {
       @RequestParam(value = "type", defaultValue = "bandwidth_limit_rule") String type,
       @RequestParam(value = "burst", defaultValue = "0") String burst,
       @RequestParam(value = "kbps", defaultValue = "0") String kbps,
+      @RequestParam(value = "direction", defaultValue = "egress") String direction,
       @RequestParam(value = "vim", defaultValue = "vim_id") String vim) {
     if (!burst.matches("[0-9]+")) {
       logger.error(
@@ -338,6 +339,7 @@ public class Api {
     rule.setMax_burst_kbps(new Integer(burst));
     rule.setType(type);
     rule.setMax_kbps(new Integer(kbps));
+    rule.setDirection(direction);
     synchronized (vim_list) {
       for (BaseVimInstance v : vim_list) {
         if (v.getId().equals(vim)) {

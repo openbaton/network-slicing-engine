@@ -173,7 +173,8 @@ public class NeutronQoSExecutor implements Runnable {
                 // Creating the not existing QoS policy
                 String created_pol_id = this.createQoSPolicy(creds, neutron_handler, r, token);
                 // Since we now have the correct id of the policy , lets create the bandwidth rule
-                createBandwidthRule(creds, created_pol_id, neutron_handler, bandwidth, token);
+                //createBandwidthRule(creds, created_pol_id, neutron_handler, bandwidth, token);
+                createBandwidthRule(creds, created_pol_id, neutron_handler, bandwidth, r.getQuality().getType(), r.getQuality().getBurst(), token);
               } else {
                 // At least print a warning here if the policy bandwidth rule differs from the one we wanted to create,
                 // this means a user touched it already
@@ -246,7 +247,7 @@ public class NeutronQoSExecutor implements Runnable {
     return neutron_handler.parsePolicyId(response);
   }
 
-  // method to create a non existing QoS policy in Openstack
+  // method to create a non existing QoS policy in Openstack using default settings as egress type and 0 burst
   private void createBandwidthRule(
       Map<String, String> creds,
       String created_pol_id,
@@ -259,6 +260,28 @@ public class NeutronQoSExecutor implements Runnable {
             "POST",
             access,
             neutron_handler.createBandwidthLimitRulePayload(bandwidth));
+    if (response == null) {
+      logger.error("Error trying to create bandwidth rule for QoS policy");
+      return;
+    }
+    logger.debug("    Created bandwidth limitation rule for new QoS policy : " + created_pol_id);
+  }
+
+  // method to create a non existing QoS policy in Openstack
+  private void createBandwidthRule(
+          Map<String, String> creds,
+          String created_pol_id,
+          NeutronQoSHandler neutron_handler,
+          String bandwidth,
+          String type,
+          String burst,
+          Object access) {
+    String response =
+            neutron_handler.neutron_http_connection(
+                    creds.get("neutron") + "/qos/policies/" + created_pol_id + "/bandwidth_limit_rules",
+                    "POST",
+                    access,
+                    neutron_handler.createBandwidthLimitRulePayload(type,bandwidth,burst));
     if (response == null) {
       logger.error("Error trying to create bandwidth rule for QoS policy");
       return;
