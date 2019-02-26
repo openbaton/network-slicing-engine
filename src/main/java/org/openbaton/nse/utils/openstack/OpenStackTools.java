@@ -157,7 +157,7 @@ public class OpenStackTools {
       for (org.openstack4j.model.identity.v2.Endpoint e : endpoint_list) {
         //logger.debug("Checking endpoint : " + e.getName());
         if (e.getName().equals("neutron")) {
-          //logger.debug("    Found OpenStack Neutron endpoint with type : " + e.getType());
+          //logger.debug("    Found OpenStack Neutron endpoint with type : " + e.getDirection());
           if (e.getType().equals("network")) {
             //logger.debug("    Neutron is available at " + e.getPublicURL());
             //logger.debug("    Using API version 2 for communication with OpenStack Neutron");

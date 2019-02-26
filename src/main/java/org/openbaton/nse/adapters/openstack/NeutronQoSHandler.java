@@ -272,10 +272,51 @@ public class NeutronQoSHandler {
     return tmp;
   }
 
+  public JSONObject createBandwidthLimitRulePayload(String type, String max_rate, String burst, String direction) {
+    // TODO : catch null objects
+    JSONObject tmp =
+            new JSONObject(
+                    "{\""
+                            + type
+                            + "\":{\"max_kbps\":\""
+                            + max_rate
+                            + "\",\"max_burst_kbps\":\""
+                            + burst
+                            + "\":{\"direction\":\""
+                            + direction
+                            + "\"}}");
+    //logger.debug("Created bandwidth_limit_rule payload : " + tmp.toString());
+    return tmp;
+  }
+
+  public JSONObject createMinimumBandwidthLimitRulePayload(String min_rate) {
+    // TODO : catch null objects
+    JSONObject tmp =
+            new JSONObject("{\"minimum_bandwidth_rule\":{\"min_kbps\":\"" + min_rate + "\"}}");
+    //logger.debug("Created bandwidth_limit_rule payload : " + tmp.toString());
+    return tmp;
+  }
+
+  public JSONObject createMinimumBandwidthLimitRulePayload(String type, String min_rate, String direction) {
+    // TODO : catch null objects
+    JSONObject tmp =
+            new JSONObject(
+                    "{\""
+                            + type
+                            + "\":{\"min_kbps\":\""
+                            + min_rate
+                            + "\":{\"direction\":\""
+                            + direction
+                            + "\"}}");
+    //logger.debug("Created bandwidth_limit_rule payload : " + tmp.toString());
+    return tmp;
+  }
+
   public String parsePolicyId(String response) {
     // TODO : catch null objects
     JSONObject pol = new JSONObject(response);
     String tmp = pol.getJSONObject("policy").getString("id");
     return tmp;
   }
+
 }
